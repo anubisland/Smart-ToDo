@@ -111,6 +111,18 @@ class TodoTask {
 bool isOverdue(TodoTask task, [DateTime? now]) =>
     !task.completed &&
     task.dueAt != null &&
-    task.dueAt!.isBefore(now ?? DateTime.now());
+    (task.hasDueTime
+        ? task.dueAt!.isBefore(now ?? DateTime.now())
+        : DateTime(
+            task.dueAt!.year,
+            task.dueAt!.month,
+            task.dueAt!.day,
+          ).isBefore(
+            DateTime(
+              (now ?? DateTime.now()).year,
+              (now ?? DateTime.now()).month,
+              (now ?? DateTime.now()).day,
+            ),
+          ));
 bool isSameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;

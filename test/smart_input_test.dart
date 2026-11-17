@@ -48,4 +48,14 @@ void main() {
     expect(restored.completed, isTrue);
     expect(restored.subtasks, original.subtasks);
   });
+
+  test('date-only tasks become overdue after their due day ends', () {
+    final task = TodoTask(
+      id: 1,
+      title: 'Due today',
+      dueAt: DateTime(2026, 11, 16),
+    );
+    expect(isOverdue(task, DateTime(2026, 11, 16, 23, 59)), isFalse);
+    expect(isOverdue(task, DateTime(2026, 11, 17)), isTrue);
+  });
 }
