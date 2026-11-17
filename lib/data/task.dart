@@ -124,5 +124,25 @@ bool isOverdue(TodoTask task, [DateTime? now]) =>
               (now ?? DateTime.now()).day,
             ),
           ));
+TodoTask? nextOccurrence(TodoTask task) {
+  if (task.completed || task.dueAt == null || task.recurrence == 'none') {
+    return null;
+  }
+  final interval = task.recurrence == 'weekly' ? 7 : 1;
+  return TodoTask(
+    id: null,
+    title: task.title,
+    description: task.description,
+    dueAt: task.dueAt!.add(Duration(days: interval)),
+    hasDueTime: task.hasDueTime,
+    durationMinutes: task.durationMinutes,
+    priority: task.priority,
+    category: task.category,
+    project: task.project,
+    recurrence: task.recurrence,
+    subtasks: task.subtasks,
+  );
+}
+
 bool isSameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;

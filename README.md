@@ -5,7 +5,8 @@ Smart-ToDo is an Anubisland Flutter task manager, built Android-first with iOS s
 ## Current MVP
 
 - Create, edit, complete, search, filter, and delete tasks. Deleted tasks can be restored from the undo action.
-- Set a due date and optional time, duration, priority, category, notes, and recurrence metadata.
+- Set a due date and optional time, duration, priority, category, project, notes, subtasks, and recurrence.
+- Create the next daily or weekly occurrence when completing a recurring dated task.
 - Use an offline English/Arabic quick parser for explicit dates, times, and durations.
 - Browse a dashboard, task filters, monthly calendar, focus timer, and weekly completion chart.
 - Persist tasks in SQLite and app preferences (language, theme, focus countdown) locally.
@@ -29,7 +30,7 @@ flutter test
 flutter build apk --release
 ```
 
-The APK is written to `build/app/outputs/flutter-apk/app-release.apk` when the Android toolchain is ready. Android SDK licenses still need to be accepted on this workstation before a release build can be considered verified.
+The APK is written to `build/app/outputs/flutter-apk/app-release.apk`. The release build succeeds; Flutter Doctor still reports Android SDK licenses that have not been accepted on this workstation.
 
 ## Storage and privacy
 
@@ -37,7 +38,7 @@ Tasks and focus-session totals are stored on the device. Smart input is local an
 
 ## MVP boundaries
 
-The data model includes project, recurrence, and subtask fields for future work; project management, recurrence scheduling, and subtask editing are not yet exposed as complete workflows. The focus screen currently supports work-session countdowns; short/long break cycling is not yet implemented. Notifications are disabled because Android permission, exact-alarm, timezone, rescheduling, and device behavior have not been validated. Statistics show tasks completed by completion date and total recorded focus minutes.
+Project names and subtasks can be saved on tasks; there is no separate project overview or per-subtask completion tracking yet. Work, short-break, and long-break timers can be selected; automatic Pomodoro phase cycling is not implemented. Notifications are disabled because Android permission, exact-alarm, timezone, rescheduling, and device behavior have not been validated. Statistics show tasks completed by completion date and total recorded focus minutes.
 
 ## GitHub
 

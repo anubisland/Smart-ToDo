@@ -58,4 +58,19 @@ void main() {
     expect(isOverdue(task, DateTime(2026, 11, 16, 23, 59)), isFalse);
     expect(isOverdue(task, DateTime(2026, 11, 17)), isTrue);
   });
+
+  test('weekly recurrence creates the next scheduled task on completion', () {
+    final task = TodoTask(
+      id: 8,
+      title: 'Weekly review',
+      dueAt: DateTime(2026, 11, 16, 17),
+      hasDueTime: true,
+      recurrence: 'weekly',
+    );
+    final next = nextOccurrence(task)!;
+    expect(next.id, isNull);
+    expect(next.completed, isFalse);
+    expect(next.dueAt, DateTime(2026, 11, 23, 17));
+    expect(nextOccurrence(task.copyWith(completed: true)), isNull);
+  });
 }

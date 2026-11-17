@@ -289,6 +289,10 @@ class _TodoShellState extends State<TodoShell> {
         completedAt: completing ? DateTime.now() : null,
       ),
     );
+    if (completing) {
+      final next = nextOccurrence(task);
+      if (next != null) await save(next);
+    }
   }
 
   Future<void> delete(TodoTask task) async {
@@ -1089,6 +1093,10 @@ class _TaskEditorState extends State<TaskEditor> {
   late final description = TextEditingController(
     text: widget.task?.description ?? '',
   );
+  late final project = TextEditingController(text: widget.task?.project ?? '');
+  late final subtasks = TextEditingController(
+    text: widget.task?.subtasks.join('\n') ?? '',
+  );
   late final duration = TextEditingController(
     text: '${widget.task?.durationMinutes ?? 25}',
   );
@@ -1098,6 +1106,17 @@ class _TaskEditorState extends State<TaskEditor> {
   TaskPriority priority = TaskPriority.medium;
   String category = 'Personal', recurrence = 'none';
   Map<String, String> get s => _words[widget.lang] ?? _words['en']!;
+
+  @override
+  void dispose() {
+    title.dispose();
+    description.dispose();
+    project.dispose();
+    subtasks.dispose();
+    duration.dispose();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -1165,6 +1184,17 @@ class _TaskEditorState extends State<TaskEditor> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: project,
+              decoration: InputDecoration(
+                labelText: s['project'],
+                prefixIcon: const Icon(Icons.folder_outlined),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
             ),
@@ -1293,6 +1323,22 @@ class _TaskEditorState extends State<TaskEditor> {
                   .toList(),
               onChanged: (v) => setState(() => recurrence = v ?? 'none'),
             ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: subtasks,
+              minLines: 2,
+              maxLines: 4,
+              decoration: InputDecoration(
+                labelText: s['subtasks'],
+                hintText: widget.lang == 'ar'
+                    ? 'مهمة فرعية في كل سطر'
+                    : 'One subtask per line',
+                prefixIcon: const Icon(Icons.format_list_bulleted_rounded),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
             const SizedBox(height: 22),
             FilledButton(
               onPressed: () {
@@ -1317,7 +1363,13 @@ class _TaskEditorState extends State<TaskEditor> {
                     durationMinutes: int.tryParse(duration.text) ?? 25,
                     priority: priority,
                     category: category,
+                    project: project.text.trim(),
                     recurrence: recurrence,
+                    subtasks: subtasks.text
+                        .split('\n')
+                        .map((item) => item.trim())
+                        .where((item) => item.isNotEmpty)
+                        .toList(),
                     completed: widget.task?.completed ?? false,
                     completedAt: widget.task?.completedAt,
                     createdAt: widget.task?.createdAt,
@@ -1364,6 +1416,7 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
     final p = await SharedPreferences.getInstance();
     final end = p.getInt('focus_end');
     final m = p.getInt('focus_minutes') ?? 25;
+    phase = p.getString('focus_phase') ?? 'workSession';
     taskId = p.getInt('focus_task');
     remaining = p.getInt('focus_remaining') ?? m * 60;
     if (end != null && end > DateTime.now().millisecondsSinceEpoch) {
@@ -1420,6 +1473,7 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
     SharedPreferences.getInstance().then((p) {
       p.setInt('focus_end', deadline!.millisecondsSinceEpoch);
       p.setInt('focus_minutes', minutes);
+      p.setString('focus_phase', phase);
       p.setInt('focus_remaining', remaining);
       if (taskId == null) {
         p.remove('focus_task');
@@ -1580,6 +1634,37 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
           child: Wrap(
             spacing: 8,
             children: [
+              for (final option in const {
+                'workSession': 25,
+                'shortBreak': 5,
+                'longBreak': 15,
+              }.entries)
+                ChoiceChip(
+                  label: Text(text(option.key)),
+                  selected: phase == option.key,
+                  onSelected: running
+                      ? null
+                      : (_) {
+                          setState(() {
+                            phase = option.key;
+                            minutes = option.value;
+                            remaining = minutes * 60;
+                          });
+                          SharedPreferences.getInstance().then((p) {
+                            p.setString('focus_phase', phase);
+                            p.setInt('focus_minutes', minutes);
+                            p.setInt('focus_remaining', remaining);
+                          });
+                        },
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Center(
+          child: Wrap(
+            spacing: 8,
+            children: [
               for (final m in [25, 45, 60])
                 ChoiceChip(
                   label: Text('$m ${text('minutes')}'),
@@ -1588,12 +1673,15 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                       ? null
                       : (_) {
                           setState(() {
+                            phase = 'workSession';
                             minutes = m;
                             remaining = m * 60;
                           });
-                          SharedPreferences.getInstance().then(
-                            (p) => p.setInt('focus_minutes', m),
-                          );
+                          SharedPreferences.getInstance().then((p) {
+                            p.setString('focus_phase', 'workSession');
+                            p.setInt('focus_minutes', m);
+                            p.setInt('focus_remaining', m * 60);
+                          });
                         },
                 ),
             ],
