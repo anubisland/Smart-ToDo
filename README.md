@@ -11,6 +11,7 @@ Smart-ToDo is an Anubisland Flutter task manager, built Android-first with iOS s
 - Browse a branded dashboard, task filters, monthly calendar, focus timer, task-status donut chart, and weekly completion chart.
 - Create and check off persistent shopping, travel, and custom lists.
 - Choose Cairo, Amiri, Noto Sans Arabic, Noto Naskh Arabic, or Tajawal. Adjust text size and switch language and theme in Settings.
+- Show the installed app version and Anubisland copyright notice in Settings.
 - Use responsive bottom navigation on phones and a navigation rail on tablets.
 - Persist tasks, lists, and focus sessions in SQLite; save language, font, text size, theme, and focus countdown preferences locally.
 - Run Pomodoro countdowns that use a stored deadline, so elapsed time remains correct after backgrounding or reopening.

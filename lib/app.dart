@@ -3,6 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:table_calendar/table_calendar.dart' hide isSameDay;
 import 'data/task.dart';
@@ -20,6 +21,8 @@ const Map<String, Map<String, String>> _words = {
     'focus': 'Focus',
     'insights': 'Insights',
     'settings': 'Settings',
+    'version': 'Version',
+    'rights': 'All rights reserved.',
     'font': 'Font family',
     'fontSize': 'Text size',
     'small': 'Small',
@@ -105,6 +108,8 @@ const Map<String, Map<String, String>> _words = {
     'focus': 'التركيز',
     'insights': 'الإحصاءات',
     'settings': 'الإعدادات',
+    'version': 'الإصدار',
+    'rights': 'جميع الحقوق محفوظة.',
     'font': 'نوع الخط',
     'fontSize': 'حجم الخط',
     'small': 'صغير',
@@ -327,6 +332,7 @@ class TodoShell extends StatefulWidget {
 
 class _TodoShellState extends State<TodoShell> {
   final db = TaskDatabase.instance;
+  String appVersion = '1.0.0+1';
   List<TodoTask> tasks = [];
   int tab = 0;
   bool loading = true;
@@ -338,6 +344,11 @@ class _TodoShellState extends State<TodoShell> {
   @override
   void initState() {
     super.initState();
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) {
+        setState(() => appVersion = '${info.version}+${info.buildNumber}');
+      }
+    });
     reload();
   }
 
@@ -1360,9 +1371,19 @@ class _TodoShellState extends State<TodoShell> {
       ),
       const SizedBox(height: 12),
       Center(
-        child: Text(
-          'Smart-ToDo • Anubisland',
-          style: TextStyle(color: Colors.grey[600]),
+        child: Column(
+          children: [
+            Text(
+              '${t('version')} $appVersion',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '© ${DateTime.now().year} Anubisland. ${t('rights')}',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          ],
         ),
       ),
     ],
