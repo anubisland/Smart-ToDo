@@ -1,11 +1,11 @@
 {
-    "name": "smart_todo",
-    "short_name": "smart_todo",
+    "name": "Smart-ToDo",
+    "short_name": "Smart-ToDo",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0b2f62",
+    "theme_color": "#0757c7",
+    "description": "Smart task planning and productivity.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -8,8 +8,11 @@ Smart-ToDo is an Anubisland Flutter task manager, built Android-first with iOS s
 - Set a due date and optional time, duration, priority, category, project, notes, subtasks, and recurrence.
 - Create the next daily or weekly occurrence when completing a recurring dated task.
 - Use an offline English/Arabic quick parser for explicit dates, times, and durations.
-- Browse a dashboard, task filters, monthly calendar, focus timer, and weekly completion chart.
-- Persist tasks in SQLite and app preferences (language, theme, focus countdown) locally.
+- Browse a branded dashboard, task filters, monthly calendar, focus timer, task-status donut chart, and weekly completion chart.
+- Create and check off persistent shopping, travel, and custom lists.
+- Choose Cairo, Amiri, Noto Sans Arabic, Noto Naskh Arabic, or Tajawal. Adjust text size and switch language and theme in Settings.
+- Use responsive bottom navigation on phones and a navigation rail on tablets.
+- Persist tasks, lists, and focus sessions in SQLite; save language, font, text size, theme, and focus countdown preferences locally.
 - Run Pomodoro countdowns that use a stored deadline, so elapsed time remains correct after backgrounding or reopening.
 
 ## Run
@@ -39,6 +42,8 @@ Tasks and focus-session totals are stored on the device. Smart input is local an
 ## MVP boundaries
 
 Project names and subtasks can be saved on tasks; there is no separate project overview or per-subtask completion tracking yet. Work, short-break, and long-break timers can be selected; automatic Pomodoro phase cycling is not implemented. Notifications are disabled because Android permission, exact-alarm, timezone, rescheduling, and device behavior have not been validated. Statistics show tasks completed by completion date and total recorded focus minutes.
+
+The app icon supplied for this project is in `assets/branding/smart_todo_icon.png`; Android, iOS, and web launcher assets are generated from it. Bundled font files and their SIL Open Font License notices are in `assets/fonts/`.
 
 ## GitHub
 

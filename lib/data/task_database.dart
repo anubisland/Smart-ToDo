@@ -19,7 +19,7 @@ class TaskDatabase {
     _db = await (_factory ?? databaseFactory).openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 3,
+        version: 4,
         onCreate: (db, version) async {
           await db.execute(
             '''CREATE TABLE tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', due_at TEXT, has_due_time INTEGER NOT NULL DEFAULT 0, duration INTEGER NOT NULL DEFAULT 25, priority TEXT NOT NULL DEFAULT 'medium', category TEXT NOT NULL DEFAULT 'Personal', project TEXT NOT NULL DEFAULT '', completed INTEGER NOT NULL DEFAULT 0, completed_at TEXT, recurrence TEXT NOT NULL DEFAULT 'none', subtasks TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL)''',
@@ -27,6 +27,7 @@ class TaskDatabase {
           await db.execute(
             '''CREATE TABLE focus_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER, started_at TEXT NOT NULL, duration INTEGER NOT NULL)''',
           );
+          await _createLists(db);
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) {
@@ -37,6 +38,7 @@ class TaskDatabase {
           if (oldVersion < 3) {
             await db.execute('ALTER TABLE tasks ADD COLUMN completed_at TEXT');
           }
+          if (oldVersion < 4) await _createLists(db);
         },
       ),
     );
@@ -71,5 +73,60 @@ class TaskDatabase {
       'SELECT COALESCE(SUM(duration), 0) AS total FROM focus_sessions',
     );
     return (rows.first['total'] as int?) ?? 0;
+  }
+
+  static Future<void> _createLists(DatabaseExecutor db) async {
+    await db.execute(
+      'CREATE TABLE task_lists (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, kind TEXT NOT NULL, created_at TEXT NOT NULL)',
+    );
+    await db.execute(
+      'CREATE TABLE list_items (id INTEGER PRIMARY KEY AUTOINCREMENT, list_id INTEGER NOT NULL, title TEXT NOT NULL, checked INTEGER NOT NULL DEFAULT 0, FOREIGN KEY(list_id) REFERENCES task_lists(id))',
+    );
+  }
+
+  Future<List<Map<String, Object?>>> allLists() async =>
+      (await database).query('task_lists', orderBy: 'created_at DESC');
+
+  Future<List<Map<String, Object?>>> listItems(int listId) async =>
+      (await database).query(
+        'list_items',
+        where: 'list_id = ?',
+        whereArgs: [listId],
+        orderBy: 'checked ASC, id ASC',
+      );
+
+  Future<int> createList(String name, String kind) async =>
+      (await database).insert('task_lists', {
+        'name': name,
+        'kind': kind,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+
+  Future<int> createListItem(int listId, String title) async => (await database)
+      .insert('list_items', {'list_id': listId, 'title': title});
+
+  Future<void> checkListItem(int id, bool checked) async {
+    await (await database).update(
+      'list_items',
+      {'checked': checked ? 1 : 0},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> deleteListItem(int id) async {
+    await (await database).delete(
+      'list_items',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> deleteList(int id) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('list_items', where: 'list_id = ?', whereArgs: [id]);
+      await txn.delete('task_lists', where: 'id = ?', whereArgs: [id]);
+    });
   }
 }

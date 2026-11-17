@@ -20,6 +20,25 @@ const Map<String, Map<String, String>> _words = {
     'focus': 'Focus',
     'insights': 'Insights',
     'settings': 'Settings',
+    'font': 'Font family',
+    'fontSize': 'Text size',
+    'small': 'Small',
+    'normal': 'Medium',
+    'large': 'Large',
+    'cairo': 'Cairo',
+    'amiri': 'Amiri',
+    'lists': 'Lists',
+    'newList': 'New list',
+    'addItem': 'Add item',
+    'listItemHint': 'Add a new item',
+    'shoppingList': 'Shopping',
+    'travelList': 'Travel',
+    'customList': 'Custom list',
+    'noLists': 'Create a list for shopping, travel, or anything you need.',
+    'reminders': 'Reminders',
+    'remindersDisabled': 'Local reminders are not enabled in this build.',
+    'linkTask': 'Link to a task',
+    'noneOption': 'None',
     'today': 'Today',
     'upcoming': 'Upcoming',
     'overdue': 'Overdue',
@@ -52,6 +71,7 @@ const Map<String, Map<String, String>> _words = {
     'total': 'Total tasks',
     'done': 'Completed',
     'pending': 'Pending',
+    'completionRate': 'Completion rate',
     'focusTime': 'Focus time',
     'week': 'This week',
     'start': 'Start focus',
@@ -85,6 +105,25 @@ const Map<String, Map<String, String>> _words = {
     'focus': 'التركيز',
     'insights': 'الإحصاءات',
     'settings': 'الإعدادات',
+    'font': 'نوع الخط',
+    'fontSize': 'حجم الخط',
+    'small': 'صغير',
+    'normal': 'متوسط',
+    'large': 'كبير',
+    'cairo': 'كايرو',
+    'amiri': 'أميري',
+    'lists': 'القوائم',
+    'newList': 'قائمة جديدة',
+    'addItem': 'إضافة عنصر',
+    'listItemHint': 'أضف عنصراً جديداً',
+    'shoppingList': 'المشتريات',
+    'travelList': 'السفر',
+    'customList': 'قائمة مخصصة',
+    'noLists': 'أنشئ قائمة للتسوق أو السفر أو لأي شيء تحتاجه.',
+    'reminders': 'التذكيرات',
+    'remindersDisabled': 'التذكيرات المحلية غير مفعلة في هذا الإصدار.',
+    'linkTask': 'اربط الجلسة بمهمة',
+    'noneOption': 'بدون',
     'today': 'اليوم',
     'upcoming': 'القادمة',
     'overdue': 'المتأخرة',
@@ -117,6 +156,7 @@ const Map<String, Map<String, String>> _words = {
     'total': 'إجمالي المهام',
     'done': 'مكتملة',
     'pending': 'قيد الانتظار',
+    'completionRate': 'نسبة الإنجاز',
     'focusTime': 'وقت التركيز',
     'week': 'هذا الأسبوع',
     'start': 'ابدأ التركيز',
@@ -152,6 +192,7 @@ class SmartTodoApp extends StatefulWidget {
 
 class _SmartTodoAppState extends State<SmartTodoApp> {
   String _lang = 'en', _theme = 'light';
+  String _fontFamily = 'Cairo', _fontSize = 'normal';
   @override
   void initState() {
     super.initState();
@@ -160,6 +201,8 @@ class _SmartTodoAppState extends State<SmartTodoApp> {
         setState(() {
           _lang = p.getString('language') ?? 'en';
           _theme = p.getString('theme') ?? 'light';
+          _fontFamily = p.getString('font_family') ?? 'Cairo';
+          _fontSize = p.getString('font_size') ?? 'normal';
         });
       }
     });
@@ -175,6 +218,22 @@ class _SmartTodoAppState extends State<SmartTodoApp> {
     (await SharedPreferences.getInstance()).setString('theme', v);
   }
 
+  Future<void> setFontFamily(String v) async {
+    setState(() => _fontFamily = v);
+    (await SharedPreferences.getInstance()).setString('font_family', v);
+  }
+
+  Future<void> setFontSize(String v) async {
+    setState(() => _fontSize = v);
+    (await SharedPreferences.getInstance()).setString('font_size', v);
+  }
+
+  double get _fontScale => switch (_fontSize) {
+    'small' => .9,
+    'large' => 1.2,
+    _ => 1,
+  };
+
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: 'Smart-ToDo',
@@ -186,6 +245,16 @@ class _SmartTodoAppState extends State<SmartTodoApp> {
       GlobalWidgetsLocalizations.delegate,
       GlobalCupertinoLocalizations.delegate,
     ],
+    builder: (context, child) {
+      final media = MediaQuery.maybeOf(context);
+      final platformScale = media?.textScaler.scale(16) ?? 16;
+      return MediaQuery(
+        data: (media ?? const MediaQueryData()).copyWith(
+          textScaler: TextScaler.linear(platformScale / 16 * _fontScale),
+        ),
+        child: child ?? const SizedBox.shrink(),
+      );
+    },
     themeMode: _theme == 'system'
         ? ThemeMode.system
         : _theme == 'dark'
@@ -198,6 +267,10 @@ class _SmartTodoAppState extends State<SmartTodoApp> {
       onLanguage: setLanguage,
       themeMode: _theme,
       onTheme: setTheme,
+      fontFamily: _fontFamily,
+      fontSize: _fontSize,
+      onFontFamily: setFontFamily,
+      onFontSize: setFontSize,
     ),
   );
   ThemeData _buildTheme(Brightness b) {
@@ -225,7 +298,11 @@ class _SmartTodoAppState extends State<SmartTodoApp> {
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       ),
-      fontFamily: null,
+      fontFamily: _fontFamily,
+      textTheme: ThemeData(
+        brightness: b,
+        useMaterial3: true,
+      ).textTheme.apply(fontFamily: _fontFamily),
     );
   }
 }
@@ -237,9 +314,13 @@ class TodoShell extends StatefulWidget {
     required this.onLanguage,
     required this.themeMode,
     required this.onTheme,
+    required this.fontFamily,
+    required this.fontSize,
+    required this.onFontFamily,
+    required this.onFontSize,
   });
-  final String lang, themeMode;
-  final ValueChanged<String> onLanguage, onTheme;
+  final String lang, themeMode, fontFamily, fontSize;
+  final ValueChanged<String> onLanguage, onTheme, onFontFamily, onFontSize;
   @override
   State<TodoShell> createState() => _TodoShellState();
 }
@@ -326,18 +407,41 @@ class _TodoShellState extends State<TodoShell> {
     final tabs = [
       _dashboard(),
       _tasksView(),
+      _listsView(),
       _calendarView(),
       _focusView(),
       _insightsView(),
       _settingsView(),
     ];
+    final wide = MediaQuery.sizeOf(context).width >= 720;
     return Scaffold(
       body: SafeArea(
-        child: loading
-            ? const Center(child: CircularProgressIndicator())
-            : IndexedStack(index: tab, children: tabs),
+        child: Row(
+          children: [
+            if (wide)
+              NavigationRail(
+                selectedIndex: tab,
+                labelType: NavigationRailLabelType.all,
+                onDestinationSelected: (i) => setState(() => tab = i),
+                destinations: [
+                  _rail(Icons.grid_view_rounded, 'home'),
+                  _rail(Icons.checklist_rounded, 'tasks'),
+                  _rail(Icons.shopping_bag_outlined, 'lists'),
+                  _rail(Icons.calendar_month_rounded, 'calendar'),
+                  _rail(Icons.timer_outlined, 'focus'),
+                  _rail(Icons.insights_rounded, 'insights'),
+                  _rail(Icons.tune_rounded, 'settings'),
+                ],
+              ),
+            Expanded(
+              child: loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : IndexedStack(index: tab, children: tabs),
+            ),
+          ],
+        ),
       ),
-      floatingActionButton: tab < 3
+      floatingActionButton: tab < 2
           ? FloatingActionButton.extended(
               onPressed: () => editor(),
               icon: const Icon(Icons.add_rounded),
@@ -346,24 +450,29 @@ class _TodoShellState extends State<TodoShell> {
               foregroundColor: Colors.white,
             )
           : null,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: tab,
-        onDestinationSelected: (i) => setState(() => tab = i),
-        height: 68,
-        destinations: [
-          _nav(Icons.grid_view_rounded, 'home'),
-          _nav(Icons.checklist_rounded, 'tasks'),
-          _nav(Icons.calendar_month_rounded, 'calendar'),
-          _nav(Icons.timer_outlined, 'focus'),
-          _nav(Icons.insights_rounded, 'insights'),
-          _nav(Icons.tune_rounded, 'settings'),
-        ],
-      ),
+      bottomNavigationBar: wide
+          ? null
+          : NavigationBar(
+              selectedIndex: tab,
+              onDestinationSelected: (i) => setState(() => tab = i),
+              height: 68,
+              destinations: [
+                _nav(Icons.grid_view_rounded, 'home'),
+                _nav(Icons.checklist_rounded, 'tasks'),
+                _nav(Icons.shopping_bag_outlined, 'lists'),
+                _nav(Icons.calendar_month_rounded, 'calendar'),
+                _nav(Icons.timer_outlined, 'focus'),
+                _nav(Icons.insights_rounded, 'insights'),
+                _nav(Icons.tune_rounded, 'settings'),
+              ],
+            ),
     );
   }
 
   NavigationDestination _nav(IconData icon, String key) =>
       NavigationDestination(icon: Icon(icon), label: t(key));
+  NavigationRailDestination _rail(IconData icon, String key) =>
+      NavigationRailDestination(icon: Icon(icon), label: Text(t(key)));
   List<TodoTask> get todayTasks => tasks
       .where(
         (x) =>
@@ -411,40 +520,62 @@ class _TodoShellState extends State<TodoShell> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${t('hello')},',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(color: Colors.grey[600]),
-                        ),
-                        Text(
-                          widget.lang == 'ar'
-                              ? 'مبدع اليوم'
-                              : 'Make today count.',
-                          style: Theme.of(context).textTheme.headlineSmall
-                              ?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                        ),
-                      ],
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xff145e4b), Color(0xff23856a)],
+                    begin: AlignmentDirectional.topStart,
+                    end: AlignmentDirectional.bottomEnd,
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: Image.asset(
+                        'assets/branding/smart_todo_icon.png',
+                        width: 52,
+                        height: 52,
+                      ),
                     ),
-                  ),
-                  CircleAvatar(
-                    backgroundColor: _mint,
-                    child: Icon(Icons.wb_sunny_rounded, color: _green),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 5),
-              Text(
-                DateFormat.yMMMMEEEEd(widget.lang).format(DateTime.now()),
-                style: TextStyle(color: Colors.grey[600]),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${t('hello')},',
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(color: Colors.white70),
+                          ),
+                          Text(
+                            widget.lang == 'ar'
+                                ? 'مبدع اليوم'
+                                : 'Make today count.',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            DateFormat.yMMMMEEEEd(
+                              widget.lang,
+                            ).format(DateTime.now()),
+                            style: const TextStyle(color: Colors.white70),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(
+                      Icons.wb_sunny_rounded,
+                      color: Color(0xffffd27a),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 22),
               _progressCard(),
@@ -638,6 +769,7 @@ class _TodoShellState extends State<TodoShell> {
   }
 
   Widget _metric(String title, int count, IconData icon, Color color) => Card(
+    color: color.withValues(alpha: .09),
     child: Padding(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
       child: Column(
@@ -765,7 +897,7 @@ class _TodoShellState extends State<TodoShell> {
                     ),
                   ),
                 Text(
-                  task.category,
+                  t(task.category.toLowerCase()),
                   style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
                 Container(
@@ -899,8 +1031,37 @@ class _TodoShellState extends State<TodoShell> {
     ],
   );
   Widget _focusView() => FocusScreen(lang: widget.lang, tasks: tasks);
+
+  Widget _listsView() => SavedListsScreen(lang: widget.lang);
   Widget _insightsView() {
     final completed = tasks.where((x) => x.completed).length;
+    final overdue = tasks.where(isOverdue).length;
+    final pending = tasks.length - completed - overdue;
+    final completionPercent = tasks.isEmpty
+        ? 0
+        : (completed * 100 / tasks.length).round();
+    final pieSections = tasks.isEmpty
+        ? [PieChartSectionData(value: 1, color: Colors.black12, title: '')]
+        : [
+            if (completed > 0)
+              PieChartSectionData(
+                value: completed.toDouble(),
+                color: _green,
+                title: '$completed',
+              ),
+            if (pending > 0)
+              PieChartSectionData(
+                value: pending.toDouble(),
+                color: const Color(0xff73a9d8),
+                title: '$pending',
+              ),
+            if (overdue > 0)
+              PieChartSectionData(
+                value: overdue.toDouble(),
+                color: const Color(0xffdf9378),
+                title: '$overdue',
+              ),
+          ];
     final days = List.generate(
       7,
       (i) => DateTime.now().subtract(Duration(days: 6 - i)),
@@ -950,6 +1111,57 @@ class _TodoShellState extends State<TodoShell> {
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 14),
+        Card(
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 136,
+                  height: 136,
+                  child: PieChart(
+                    PieChartData(
+                      sections: pieSections,
+                      centerSpaceRadius: 42,
+                      sectionsSpace: 3,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 18),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$completionPercent%',
+                        style: Theme.of(context).textTheme.headlineMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: _green,
+                            ),
+                      ),
+                      Text(t('completionRate')),
+                      const SizedBox(height: 10),
+                      _chartLegend(_green, t('completed'), completed),
+                      _chartLegend(
+                        const Color(0xff73a9d8),
+                        t('pending'),
+                        pending,
+                      ),
+                      _chartLegend(
+                        const Color(0xffdf9378),
+                        t('overdue'),
+                        overdue,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
         const SizedBox(height: 14),
         Card(
@@ -1018,6 +1230,24 @@ class _TodoShellState extends State<TodoShell> {
     );
   }
 
+  Widget _chartLegend(Color color, String label, int amount) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 2),
+    child: Row(
+      children: [
+        Container(
+          width: 9,
+          height: 9,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+        ),
+        Text('$amount', style: const TextStyle(fontWeight: FontWeight.w700)),
+      ],
+    ),
+  );
+
   int _focusTotal = 0;
   Widget _settingsView() => ListView(
     padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
@@ -1061,12 +1291,71 @@ class _TodoShellState extends State<TodoShell> {
           ],
         ),
       ),
+      const SizedBox(height: 12),
+      Card(
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                t('font'),
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  for (final name in const [
+                    'Cairo',
+                    'Amiri',
+                    'NotoSansArabic',
+                    'NotoNaskhArabic',
+                    'Tajawal',
+                  ])
+                    ChoiceChip(
+                      label: Text(switch (name) {
+                        'Cairo' => t('cairo'),
+                        'Amiri' => t('amiri'),
+                        'NotoSansArabic' => 'Noto Sans Arabic',
+                        'NotoNaskhArabic' => 'Noto Naskh Arabic',
+                        _ => name,
+                      }),
+                      selected: widget.fontFamily == name,
+                      onSelected: (_) => widget.onFontFamily(name),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Text(
+                t('fontSize'),
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<String>(
+                  segments: [
+                    ButtonSegment(value: 'small', label: Text(t('small'))),
+                    ButtonSegment(value: 'normal', label: Text(t('normal'))),
+                    ButtonSegment(value: 'large', label: Text(t('large'))),
+                  ],
+                  selected: {widget.fontSize},
+                  onSelectionChanged: (v) => widget.onFontSize(v.first),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
       const SizedBox(height: 14),
       Card(
-        child: const ListTile(
-          leading: Icon(Icons.notifications_off_outlined),
-          title: Text('Reminders'),
-          subtitle: Text('Local reminders are not enabled in this build.'),
+        child: ListTile(
+          leading: const Icon(Icons.notifications_off_outlined),
+          title: Text(t('reminders')),
+          subtitle: Text(t('remindersDisabled')),
         ),
       ),
       const SizedBox(height: 12),
@@ -1078,6 +1367,251 @@ class _TodoShellState extends State<TodoShell> {
       ),
     ],
   );
+}
+
+class SavedListsScreen extends StatefulWidget {
+  const SavedListsScreen({super.key, required this.lang});
+  final String lang;
+  @override
+  State<SavedListsScreen> createState() => _SavedListsScreenState();
+}
+
+class _SavedListsScreenState extends State<SavedListsScreen> {
+  final db = TaskDatabase.instance;
+  List<Map<String, Object?>> lists = [];
+  final Map<int, List<Map<String, Object?>>> items = {};
+  final Set<int> expanded = {};
+  String t(String key) => _words[widget.lang]?[key] ?? key;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final value = await db.allLists();
+    if (mounted) setState(() => lists = value);
+  }
+
+  Future<void> _newList({String? kind}) async {
+    final controller = TextEditingController(
+      text: kind == 'shopping'
+          ? t('shoppingList')
+          : kind == 'travel'
+          ? t('travelList')
+          : '',
+    );
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(t('newList')),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(labelText: t('title')),
+          onSubmitted: (v) => Navigator.pop(context, v.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(t('cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: Text(t('save')),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (name == null || name.isEmpty) return;
+    final id = await db.createList(name, kind ?? 'custom');
+    await _load();
+    if (mounted) setState(() => expanded.add(id));
+  }
+
+  Future<void> _addItem(int listId) async {
+    final controller = TextEditingController();
+    final title = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(t('addItem')),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(hintText: t('listItemHint')),
+          onSubmitted: (v) => Navigator.pop(context, v.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(t('cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: Text(t('addItem')),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (title == null || title.isEmpty) return;
+    await db.createListItem(listId, title);
+    await _loadItems(listId);
+  }
+
+  Future<void> _loadItems(int listId) async {
+    final value = await db.listItems(listId);
+    if (mounted) setState(() => items[listId] = value);
+  }
+
+  Future<void> _toggleItem(Map<String, Object?> item, int listId) async {
+    await db.checkListItem(item['id'] as int, item['checked'] != 1);
+    await _loadItems(listId);
+  }
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+    children: [
+      Row(
+        children: [
+          Expanded(
+            child: Text(
+              t('lists'),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+            ),
+          ),
+          IconButton.filledTonal(
+            onPressed: () => _newList(),
+            icon: const Icon(Icons.add_rounded),
+            tooltip: t('newList'),
+          ),
+        ],
+      ),
+      Text(
+        t('noLists'),
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+      ),
+      const SizedBox(height: 14),
+      Wrap(
+        spacing: 8,
+        children: [
+          ActionChip(
+            avatar: const Icon(Icons.shopping_cart_outlined, size: 18),
+            label: Text(t('shoppingList')),
+            onPressed: () => _newList(kind: 'shopping'),
+          ),
+          ActionChip(
+            avatar: const Icon(Icons.flight_takeoff_rounded, size: 18),
+            label: Text(t('travelList')),
+            onPressed: () => _newList(kind: 'travel'),
+          ),
+          ActionChip(
+            avatar: const Icon(Icons.playlist_add_rounded, size: 18),
+            label: Text(t('customList')),
+            onPressed: () => _newList(kind: 'custom'),
+          ),
+        ],
+      ),
+      const SizedBox(height: 14),
+      if (lists.isEmpty)
+        Card(
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          child: Padding(
+            padding: const EdgeInsets.all(22),
+            child: Text(t('noLists'), textAlign: TextAlign.center),
+          ),
+        )
+      else
+        for (final list in lists) _listCard(list),
+    ],
+  );
+
+  Widget _listCard(Map<String, Object?> list) {
+    final id = list['id'] as int;
+    final kind = list['kind'] as String;
+    final rows = items[id] ?? const <Map<String, Object?>>[];
+    return Card(
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
+      child: Column(
+        children: [
+          ListTile(
+            leading: CircleAvatar(
+              backgroundColor: _green.withValues(alpha: .12),
+              foregroundColor: _green,
+              child: Icon(
+                kind == 'travel'
+                    ? Icons.flight_takeoff_rounded
+                    : kind == 'shopping'
+                    ? Icons.shopping_cart_outlined
+                    : Icons.list_alt_rounded,
+              ),
+            ),
+            title: Text(
+              list['name'] as String,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            subtitle: Text(
+              '${rows.where((x) => x['checked'] == 1).length}/${rows.length}',
+            ),
+            trailing: IconButton(
+              onPressed: () => _addItem(id),
+              icon: const Icon(Icons.add_circle_outline_rounded),
+              tooltip: t('addItem'),
+            ),
+            onTap: () async {
+              setState(
+                () => expanded.contains(id)
+                    ? expanded.remove(id)
+                    : expanded.add(id),
+              );
+              if (expanded.contains(id)) await _loadItems(id);
+            },
+          ),
+          if (expanded.contains(id)) ...[
+            const Divider(height: 1),
+            for (final item in rows)
+              Dismissible(
+                key: ValueKey('list-item-${item['id']}'),
+                direction: DismissDirection.endToStart,
+                onDismissed: (_) async {
+                  await db.deleteListItem(item['id'] as int);
+                  await _loadItems(id);
+                },
+                background: Container(
+                  color: Colors.red.shade100,
+                  alignment: AlignmentDirectional.centerEnd,
+                  padding: const EdgeInsetsDirectional.only(end: 20),
+                  child: const Icon(Icons.delete_outline, color: Colors.red),
+                ),
+                child: CheckboxListTile(
+                  value: item['checked'] == 1,
+                  title: Text(
+                    item['title'] as String,
+                    style: TextStyle(
+                      decoration: item['checked'] == 1
+                          ? TextDecoration.lineThrough
+                          : null,
+                    ),
+                  ),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  onChanged: (_) => _toggleItem(item, id),
+                ),
+              ),
+            TextButton.icon(
+              onPressed: () => _addItem(id),
+              icon: const Icon(Icons.add),
+              label: Text(t('addItem')),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 class TaskEditor extends StatefulWidget {
@@ -1598,12 +2132,15 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
         Card(
           child: ListTile(
             leading: const Icon(Icons.task_alt, color: _green),
-            title: Text('Link to a task'),
+            title: Text(text('linkTask')),
             trailing: DropdownButton<int?>(
               value: taskId,
-              hint: const Text('None'),
+              hint: Text(text('noneOption')),
               items: [
-                const DropdownMenuItem<int?>(value: null, child: Text('None')),
+                DropdownMenuItem<int?>(
+                  value: null,
+                  child: Text(text('noneOption')),
+                ),
                 ...widget.tasks
                     .where((x) => !x.completed)
                     .map(

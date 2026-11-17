@@ -1,5 +1,5 @@
 name: smart_todo
-description: "A new Flutter project."
+description: "Anubisland Smart-ToDo task planner."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -67,6 +67,31 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  assets:
+    - assets/branding/smart_todo_icon.png
+  fonts:
+    - family: Cairo
+      fonts:
+        - asset: assets/fonts/Cairo-Variable.ttf
+          weight: 400
+    - family: Amiri
+      fonts:
+        - asset: assets/fonts/Amiri-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Amiri-Bold.ttf
+          weight: 700
+    - family: NotoSansArabic
+      fonts:
+        - asset: assets/fonts/NotoSansArabic-Variable.ttf
+          weight: 400
+    - family: NotoNaskhArabic
+      fonts:
+        - asset: assets/fonts/NotoNaskhArabicUI-Variable.ttf
+          weight: 400
+    - family: Tajawal
+      fonts:
+        - asset: assets/fonts/Tajawal-Regular.ttf
+          weight: 400
 
   # To add assets to your application, add an assets section, like this:
   # assets:

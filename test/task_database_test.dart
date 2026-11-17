@@ -24,6 +24,9 @@ void main() {
       priority: TaskPriority.high,
     );
     await database.save(task);
+    final listId = await database.createList('Travel', 'travel');
+    final itemId = await database.createListItem(listId, 'Passport');
+    await database.checkListItem(itemId, true);
     await (await database.database).close();
 
     final reopened = TaskDatabase.testing(
@@ -36,6 +39,11 @@ void main() {
     expect(stored.single.priority, TaskPriority.high);
     expect(stored.single.dueAt, task.dueAt);
     expect(stored.single.hasDueTime, isTrue);
+    final savedLists = await reopened.allLists();
+    expect(savedLists.single['name'], 'Travel');
+    final savedItems = await reopened.listItems(listId);
+    expect(savedItems.single['title'], 'Passport');
+    expect(savedItems.single['checked'], 1);
 
     await (await reopened.database).close();
     await directory.delete(recursive: true);
