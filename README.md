@@ -7,7 +7,7 @@ Smart-ToDo is an Anubisland Flutter task manager, built Android-first with iOS s
 - Create, edit, complete, search, filter, and delete tasks. Deleted tasks can be restored from the undo action.
 - Set a due date and optional time, duration, priority, category, project, notes, subtasks, and recurrence.
 - Review progress for every named project from the dashboard and filter tasks by project.
-- Create the next daily or weekly occurrence when completing a recurring dated task.
+- Create the next daily, weekday, weekly, or monthly occurrence when completing a recurring dated task.
 - Use an offline English/Arabic quick parser for explicit dates, times, and durations.
 - Browse a branded dashboard, task filters, monthly calendar, focus timer, task-status donut chart, 7-day and 30-day completion trends, and category progress.
 - Create and check off persistent shopping, travel, and custom lists.

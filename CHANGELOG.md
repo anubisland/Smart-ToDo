@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.8 — 2026-11-17
+
+- Added weekday and monthly task recurrence options in English and Arabic.
+- Preserved the time of day when creating a recurring occurrence and clamped monthly dates to the last valid day of shorter months.
+- Kept the existing Android signing certificate for direct upgrades.
+
 ## 1.0.7 — 2026-11-17
 
 - Added optional password-protected encrypted backups using Argon2id key derivation and authenticated AES-256-GCM encryption.

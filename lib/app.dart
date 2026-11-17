@@ -131,6 +131,8 @@ const Map<String, Map<String, String>> _words = {
     'none': 'Never',
     'daily': 'Daily',
     'weekly': 'Weekly',
+    'weekdays': 'Weekdays',
+    'monthly': 'Monthly',
     'subtasks': 'Subtasks',
     'project': 'Project',
     'projects': 'Projects',
@@ -257,6 +259,8 @@ const Map<String, Map<String, String>> _words = {
     'none': 'أبداً',
     'daily': 'يومياً',
     'weekly': 'أسبوعياً',
+    'weekdays': 'أيام العمل',
+    'monthly': 'شهرياً',
     'subtasks': 'مهام فرعية',
     'project': 'المشروع',
     'projects': 'المشاريع',
@@ -417,7 +421,7 @@ class TodoShell extends StatefulWidget {
 
 class _TodoShellState extends State<TodoShell> {
   final db = TaskDatabase.instance;
-  String appVersion = '1.0.7+8';
+  String appVersion = '1.0.8+9';
   List<TodoTask> tasks = [];
   int tab = 0;
   bool loading = true;
@@ -2685,7 +2689,7 @@ class _TaskEditorState extends State<TaskEditor> {
             ),
             DropdownButtonFormField<String>(
               initialValue: recurrence,
-              items: ['none', 'daily', 'weekly']
+              items: ['none', 'daily', 'weekdays', 'weekly', 'monthly']
                   .map((v) => DropdownMenuItem(value: v, child: Text(s[v]!)))
                   .toList(),
               onChanged: (v) => setState(() => recurrence = v ?? 'none'),

@@ -141,12 +141,22 @@ TodoTask? nextOccurrence(TodoTask task) {
   if (task.completed || task.dueAt == null || task.recurrence == 'none') {
     return null;
   }
-  final interval = task.recurrence == 'weekly' ? 7 : 1;
+  final due = task.dueAt!;
+  DateTime shiftDays(int days) =>
+      DateTime(due.year, due.month, due.day + days, due.hour, due.minute);
+  final nextDue = switch (task.recurrence) {
+    'daily' => shiftDays(1),
+    'weekdays' => _nextWeekday(shiftDays(1)),
+    'weekly' => shiftDays(7),
+    'monthly' => _nextMonth(due),
+    _ => null,
+  };
+  if (nextDue == null) return null;
   return TodoTask(
     id: null,
     title: task.title,
     description: task.description,
-    dueAt: task.dueAt!.add(Duration(days: interval)),
+    dueAt: nextDue,
     hasDueTime: task.hasDueTime,
     durationMinutes: task.durationMinutes,
     priority: task.priority,
@@ -155,6 +165,37 @@ TodoTask? nextOccurrence(TodoTask task) {
     recurrence: task.recurrence,
     subtasks: task.subtasks,
     subtasksDone: List<bool>.filled(task.subtasks.length, false),
+  );
+}
+
+DateTime _nextWeekday(DateTime date) {
+  var next = date;
+  while (next.weekday == DateTime.saturday || next.weekday == DateTime.sunday) {
+    next = DateTime(
+      next.year,
+      next.month,
+      next.day + 1,
+      next.hour,
+      next.minute,
+    );
+  }
+  return next;
+}
+
+DateTime _nextMonth(DateTime date) {
+  final firstOfNextMonth = DateTime(date.year, date.month + 1);
+  final lastDay = DateTime(
+    firstOfNextMonth.year,
+    firstOfNextMonth.month + 1,
+    0,
+  ).day;
+  final day = date.day > lastDay ? lastDay : date.day;
+  return DateTime(
+    firstOfNextMonth.year,
+    firstOfNextMonth.month,
+    day,
+    date.hour,
+    date.minute,
   );
 }
 
