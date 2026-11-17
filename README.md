@@ -19,6 +19,7 @@ Smart-ToDo is an Anubisland Flutter task manager, built Android-first with iOS s
 - Use responsive bottom navigation on phones and a navigation rail on tablets.
 - Persist tasks, lists, and focus sessions in SQLite; save language, font, text size, theme, and focus countdown preferences locally.
 - Run Pomodoro countdowns that use a stored deadline, so elapsed time remains correct after backgrounding or reopening.
+- Follow guided Pomodoro cycles: a short break follows each focus session, a long break follows every fourth, and the next phase waits for the user to start it.
 
 ## Run
 
@@ -46,7 +47,7 @@ Tasks, focus sessions, and saved lists are stored on the device. Backups are JSO
 
 ## MVP boundaries
 
-Work, short-break, and long-break timers can be selected; automatic Pomodoro phase cycling is not implemented. Android reminders require notification permission and use inexact scheduling, so power-saving policies and some device manufacturers may delay delivery. Statistics show tasks completed by completion date and total recorded focus minutes.
+Android reminders require notification permission and use inexact scheduling, so power-saving policies and some device manufacturers may delay delivery. Statistics show tasks completed by completion date and total recorded focus minutes.
 
 The app icon supplied for this project is in `assets/branding/smart_todo_icon.png`; Android, iOS, and web launcher assets are generated from it. Bundled font files and their SIL Open Font License notices are in `assets/fonts/`.
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.5 — 2026-11-17
+
+- Added guided Pomodoro phase cycling: focus sessions prepare a short break, every fourth prepares a long break, and breaks prepare the next focus session.
+- Kept transitions manual so the next phase does not start without the user.
+- Saved completed focus sessions and cycle progress across app restarts.
+- Preserved the existing Android signing certificate for direct upgrades.
+
 ## 1.0.4 — 2026-11-17
 
 - Added a dashboard project overview with per-project completion progress.

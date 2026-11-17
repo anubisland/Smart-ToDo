@@ -127,6 +127,9 @@ const Map<String, Map<String, String>> _words = {
     'projects': 'Projects',
     'allProjects': 'All projects',
     'projectTasks': 'tasks',
+    'focusCycle': 'Work sessions in this cycle',
+    'sessionComplete': 'Session complete',
+    'nextReady': 'is ready to start',
   },
   'ar': {
     'home': 'الرئيسية',
@@ -236,6 +239,9 @@ const Map<String, Map<String, String>> _words = {
     'projects': 'المشاريع',
     'allProjects': 'كل المشاريع',
     'projectTasks': 'مهام',
+    'focusCycle': 'جلسات التركيز في هذه الدورة',
+    'sessionComplete': 'اكتملت الجلسة',
+    'nextReady': 'جاهزة للبدء',
   },
 };
 
@@ -382,7 +388,7 @@ class TodoShell extends StatefulWidget {
 
 class _TodoShellState extends State<TodoShell> {
   final db = TaskDatabase.instance;
-  String appVersion = '1.0.4+5';
+  String appVersion = '1.0.5+6';
   List<TodoTask> tasks = [];
   int tab = 0;
   bool loading = true;
@@ -2511,8 +2517,10 @@ class FocusScreen extends StatefulWidget {
 }
 
 class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
-  int minutes = 25, remaining = 1500;
+  int minutes = 25, remaining = 1500, workMinutes = 25;
+  int workSessions = 0;
   bool running = false;
+  bool completing = false;
   DateTime? deadline;
   Timer? ticker;
   int? taskId;
@@ -2529,25 +2537,30 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
     final p = await SharedPreferences.getInstance();
     final end = p.getInt('focus_end');
     final m = p.getInt('focus_minutes') ?? 25;
+    workMinutes =
+        p.getInt('focus_work_minutes') ??
+        (p.getString('focus_phase') == 'workSession' ? m : 25);
+    workSessions = p.getInt('focus_work_sessions') ?? 0;
     phase = p.getString('focus_phase') ?? 'workSession';
     taskId = p.getInt('focus_task');
     remaining = p.getInt('focus_remaining') ?? m * 60;
+    DateTime? expiredAt;
     if (end != null && end > DateTime.now().millisecondsSinceEpoch) {
       deadline = DateTime.fromMillisecondsSinceEpoch(end);
       remaining = deadline!.difference(DateTime.now()).inSeconds;
       running = true;
     } else if (end != null) {
+      expiredAt = DateTime.fromMillisecondsSinceEpoch(end);
+      deadline = expiredAt;
       remaining = 0;
-      await TaskDatabase.instance.saveFocus(
-        taskId,
-        DateTime.now().subtract(Duration(minutes: m)),
-        m,
-      );
-      await p.remove('focus_end');
     }
     minutes = m;
     if (mounted) setState(() {});
-    if (running) _startTick();
+    if (expiredAt != null) {
+      await _completePhase(completedAt: expiredAt, showNotice: false);
+    } else if (running) {
+      _startTick();
+    }
   }
 
   @override
@@ -2564,20 +2577,74 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
     if (deadline == null) return;
     final r = deadline!.difference(DateTime.now()).inSeconds;
     if (r <= 0) {
-      ticker?.cancel();
-      setState(() {
-        remaining = 0;
-        running = false;
-      });
-      SharedPreferences.getInstance().then((p) => p.remove('focus_end'));
-      TaskDatabase.instance.saveFocus(
-        taskId,
-        DateTime.now().subtract(Duration(minutes: minutes)),
-        minutes,
-      );
+      _completePhase(completedAt: deadline!);
       return;
     }
     if (mounted) setState(() => remaining = r);
+  }
+
+  Future<void> _completePhase({
+    required DateTime completedAt,
+    bool showNotice = true,
+  }) async {
+    if (completing) return;
+    completing = true;
+    ticker?.cancel();
+    final finishedPhase = phase;
+    final finishedMinutes = minutes;
+    if (finishedPhase == 'workSession') {
+      try {
+        await TaskDatabase.instance.saveFocus(
+          taskId,
+          completedAt.subtract(Duration(minutes: finishedMinutes)),
+          finishedMinutes,
+        );
+      } catch (_) {
+        // Keep the focus cycle moving if session history cannot be saved.
+      }
+      workSessions++;
+    }
+    final nextPhase = switch (finishedPhase) {
+      'workSession' => workSessions % 4 == 0 ? 'longBreak' : 'shortBreak',
+      _ => 'workSession',
+    };
+    final nextMinutes = switch (nextPhase) {
+      'shortBreak' => 5,
+      'longBreak' => 15,
+      _ => workMinutes,
+    };
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.remove('focus_end');
+      await p.setString('focus_phase', nextPhase);
+      await p.setInt('focus_minutes', nextMinutes);
+      await p.setInt('focus_remaining', nextMinutes * 60);
+      await p.setInt('focus_work_sessions', workSessions);
+      await p.setInt('focus_work_minutes', workMinutes);
+    } catch (_) {
+      // Let the user continue even if local preference storage is unavailable.
+    }
+    if (mounted) {
+      setState(() {
+        phase = nextPhase;
+        minutes = nextMinutes;
+        remaining = nextMinutes * 60;
+        deadline = null;
+        running = false;
+        completing = false;
+      });
+      if (showNotice) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${text('sessionComplete')} · ${text(nextPhase)} ${text('nextReady')}',
+            ),
+          ),
+        );
+      }
+    } else {
+      completing = false;
+    }
   }
 
   Future<void> _start() {
@@ -2586,6 +2653,7 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
     SharedPreferences.getInstance().then((p) {
       p.setInt('focus_end', deadline!.millisecondsSinceEpoch);
       p.setInt('focus_minutes', minutes);
+      if (phase == 'workSession') p.setInt('focus_work_minutes', workMinutes);
       p.setString('focus_phase', phase);
       p.setInt('focus_remaining', remaining);
       if (taskId == null) {
@@ -2633,6 +2701,9 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final ratio = 1 - remaining / (minutes * 60);
+    final cycleProgress = workSessions % 4 == 0 && phase == 'longBreak'
+        ? 4
+        : workSessions % 4;
     return ListView(
       padding: const EdgeInsets.fromLTRB(22, 18, 22, 32),
       children: [
@@ -2673,6 +2744,11 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                     Text(
                       text(phase),
                       style: TextStyle(color: Colors.grey[600]),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${text('focusCycle')}: $cycleProgress / 4',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
                     ),
                   ],
                 ),
@@ -2791,11 +2867,13 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                           setState(() {
                             phase = 'workSession';
                             minutes = m;
+                            workMinutes = m;
                             remaining = m * 60;
                           });
                           SharedPreferences.getInstance().then((p) {
                             p.setString('focus_phase', 'workSession');
                             p.setInt('focus_minutes', m);
+                            p.setInt('focus_work_minutes', m);
                             p.setInt('focus_remaining', m * 60);
                           });
                         },
