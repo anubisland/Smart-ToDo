@@ -129,4 +129,80 @@ class TaskDatabase {
       await txn.delete('task_lists', where: 'id = ?', whereArgs: [id]);
     });
   }
+
+  Future<Map<String, Object?>> exportBackup() async {
+    final db = await database;
+    return {
+      'format': 'anubisland-smart-todo-backup',
+      'version': 1,
+      'created_at': DateTime.now().toUtc().toIso8601String(),
+      'data': {
+        'tasks': await db.query('tasks', orderBy: 'id ASC'),
+        'focus_sessions': await db.query('focus_sessions', orderBy: 'id ASC'),
+        'task_lists': await db.query('task_lists', orderBy: 'id ASC'),
+        'list_items': await db.query('list_items', orderBy: 'id ASC'),
+      },
+    };
+  }
+
+  Future<void> restoreBackup(Map<String, dynamic> backup) async {
+    if (backup['format'] != 'anubisland-smart-todo-backup' ||
+        backup['version'] != 1 ||
+        backup['data'] is! Map) {
+      throw const FormatException('Unsupported Smart-ToDo backup.');
+    }
+    final data = Map<String, dynamic>.from(backup['data'] as Map);
+    List<Map<String, Object?>> rows(String key) {
+      final value = data[key];
+      if (value is! List || value.any((row) => row is! Map)) {
+        throw FormatException('Invalid $key in backup.');
+      }
+      return value.map((row) => Map<String, Object?>.from(row as Map)).toList();
+    }
+
+    final tasks = rows('tasks');
+    final sessions = rows('focus_sessions');
+    final lists = rows('task_lists');
+    final items = rows('list_items');
+    bool hasId(Map<String, Object?> row) => row['id'] is int;
+    if (tasks.any((row) => !hasId(row) || row['title'] is! String) ||
+        sessions.any((row) => !hasId(row) || row['started_at'] is! String) ||
+        lists.any(
+          (row) =>
+              !hasId(row) || row['name'] is! String || row['kind'] is! String,
+        ) ||
+        items.any(
+          (row) =>
+              !hasId(row) ||
+              row['list_id'] is! int ||
+              row['title'] is! String ||
+              row['checked'] is! int,
+        )) {
+      throw const FormatException('Backup data is incomplete or invalid.');
+    }
+    final listIds = lists.map((row) => row['id'] as int).toSet();
+    if (items.any((row) => !listIds.contains(row['list_id']))) {
+      throw const FormatException('Backup contains an item without a list.');
+    }
+
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('list_items');
+      await txn.delete('task_lists');
+      await txn.delete('focus_sessions');
+      await txn.delete('tasks');
+      for (final row in tasks) {
+        await txn.insert('tasks', row);
+      }
+      for (final row in sessions) {
+        await txn.insert('focus_sessions', row);
+      }
+      for (final row in lists) {
+        await txn.insert('task_lists', row);
+      }
+      for (final row in items) {
+        await txn.insert('list_items', row);
+      }
+    });
+  }
 }

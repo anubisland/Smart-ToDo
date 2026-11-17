@@ -10,6 +10,8 @@ Smart-ToDo is an Anubisland Flutter task manager, built Android-first with iOS s
 - Use an offline English/Arabic quick parser for explicit dates, times, and durations.
 - Browse a branded dashboard, task filters, monthly calendar, focus timer, task-status donut chart, and weekly completion chart.
 - Create and check off persistent shopping, travel, and custom lists.
+- Start grocery, travel, Umrah, Hajj, Ramadan, moving, and reading lists from editable checklist templates.
+- Export tasks, focus history, lists, and list items as a JSON backup, then restore them after explicit confirmation.
 - Choose Cairo, Amiri, Noto Sans Arabic, Noto Naskh Arabic, or Tajawal. Adjust text size and switch language and theme in Settings.
 - Show the installed app version and Anubisland copyright notice in Settings.
 - Use responsive bottom navigation on phones and a navigation rail on tablets.
@@ -18,7 +20,7 @@ Smart-ToDo is an Anubisland Flutter task manager, built Android-first with iOS s
 
 ## Run
 
-Flutter 3.41.9 / Dart 3.11.5 were used to initialize and build this project. Add `C:\src\flutter\bin` to PATH, or invoke Flutter with its full path.
+Flutter 3.44.9 / Dart 3.12.2 are used for the current build. Invoke Flutter with its full path if it is not on PATH.
 
 ```powershell
 flutter pub get
@@ -34,11 +36,11 @@ flutter test
 flutter build apk --release
 ```
 
-The APK is written to `build/app/outputs/flutter-apk/app-release.apk`. The release build succeeds; Flutter Doctor still reports Android SDK licenses that have not been accepted on this workstation.
+The APK is written to `build/app/outputs/flutter-apk/app-release.apk`. Release builds use the existing Android debug key to preserve compatibility with the original evaluation APK; configure a dedicated production key after users have exported backups.
 
 ## Storage and privacy
 
-Tasks and focus-session totals are stored on the device. Smart input is local and does not call an AI service. There are no embedded service credentials. Firebase sync, AI planning, subscriptions, and local notifications are not configured or presented as available features.
+Tasks, focus sessions, and saved lists are stored on the device. Backups are JSON files and are not encrypted; store them somewhere private. Smart input is local and does not call an AI service. There are no embedded service credentials. Firebase sync, AI planning, subscriptions, and local notifications are not configured or presented as available features.
 
 ## MVP boundaries
 
@@ -48,4 +50,4 @@ The app icon supplied for this project is in `assets/branding/smart_todo_icon.pn
 
 ## GitHub
 
-The local repository is initialized on `main`. GitHub CLI is authenticated as `melwazeer` and can see the `anubisland` organization. No remote repository has been created, and nothing has been pushed. The intended remote name is `Smart-ToDo`; create/push only after confirming the organization's repository permissions and visibility.
+The public repository is [`anubisland/Smart-ToDo`](https://github.com/anubisland/Smart-ToDo). Download the latest Android build from [GitHub Releases](https://github.com/anubisland/Smart-ToDo/releases/latest).

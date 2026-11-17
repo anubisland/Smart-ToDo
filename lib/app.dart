@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart';
@@ -35,7 +38,24 @@ const Map<String, Map<String, String>> _words = {
     'addItem': 'Add item',
     'listItemHint': 'Add a new item',
     'shoppingList': 'Shopping',
+    'groceriesList': 'Groceries',
     'travelList': 'Travel',
+    'umrahList': 'Umrah',
+    'hajjList': 'Hajj',
+    'ramadanList': 'Ramadan',
+    'movingList': 'Moving',
+    'booksList': 'Books to read',
+    'backupRestore': 'Backup and restore',
+    'backup': 'Create backup',
+    'backupDesc': 'Save tasks, focus history, and lists to a file.',
+    'restore': 'Restore backup',
+    'restoreDesc': 'Replace app data from a Smart-ToDo backup file.',
+    'backupSaved': 'Backup file created.',
+    'restoreDone': 'Backup restored successfully.',
+    'restoreConfirm': 'Restore this backup?',
+    'restoreWarning':
+        'This replaces all current tasks, focus history, and lists.',
+    'backupInvalid': 'The selected backup is invalid or unsupported.',
     'customList': 'Custom list',
     'noLists': 'Create a list for shopping, travel, or anything you need.',
     'reminders': 'Reminders',
@@ -122,7 +142,24 @@ const Map<String, Map<String, String>> _words = {
     'addItem': 'إضافة عنصر',
     'listItemHint': 'أضف عنصراً جديداً',
     'shoppingList': 'المشتريات',
+    'groceriesList': 'مشتريات البقالة',
     'travelList': 'السفر',
+    'umrahList': 'العمرة',
+    'hajjList': 'الحج',
+    'ramadanList': 'رمضان',
+    'movingList': 'الانتقال إلى منزل جديد',
+    'booksList': 'كتب للقراءة',
+    'backupRestore': 'النسخ الاحتياطي والاستعادة',
+    'backup': 'إنشاء نسخة احتياطية',
+    'backupDesc': 'احفظ المهام وسجل التركيز والقوائم في ملف.',
+    'restore': 'استعادة نسخة احتياطية',
+    'restoreDesc': 'استبدل بيانات التطبيق من ملف نسخة Smart-ToDo.',
+    'backupSaved': 'تم إنشاء ملف النسخة الاحتياطية.',
+    'restoreDone': 'تمت استعادة النسخة الاحتياطية بنجاح.',
+    'restoreConfirm': 'هل تريد استعادة هذه النسخة؟',
+    'restoreWarning':
+        'سيؤدي ذلك إلى استبدال كل المهام وسجل التركيز والقوائم الحالية.',
+    'backupInvalid': 'ملف النسخة الاحتياطية غير صالح أو غير مدعوم.',
     'customList': 'قائمة مخصصة',
     'noLists': 'أنشئ قائمة للتسوق أو السفر أو لأي شيء تحتاجه.',
     'reminders': 'التذكيرات',
@@ -332,7 +369,7 @@ class TodoShell extends StatefulWidget {
 
 class _TodoShellState extends State<TodoShell> {
   final db = TaskDatabase.instance;
-  String appVersion = '1.0.0+1';
+  String appVersion = '1.0.1+2';
   List<TodoTask> tasks = [];
   int tab = 0;
   bool loading = true;
@@ -401,6 +438,74 @@ class _TodoShellState extends State<TodoShell> {
         ),
       ),
     );
+  }
+
+  Future<void> _exportBackup() async {
+    try {
+      final data = await db.exportBackup();
+      final stamp = DateFormat('yyyyMMdd-HHmm').format(DateTime.now());
+      final result = await FilePicker.saveFile(
+        dialogTitle: t('backup'),
+        fileName: 'smart-todo-backup-$stamp.json',
+        bytes: Uint8List.fromList(utf8.encode(jsonEncode(data))),
+        mimeType: 'application/json',
+      );
+      if (result != null && mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t('backupSaved'))));
+      }
+    } catch (_) {
+      if (mounted) _showBackupError();
+    }
+  }
+
+  Future<void> _importBackup() async {
+    try {
+      final file = await FilePicker.pickFile(
+        type: FileType.custom,
+        allowedExtensions: const ['json'],
+      );
+      if (file == null) return;
+      final decoded = jsonDecode(utf8.decode(await file.readAsBytes()));
+      if (!mounted) return;
+      if (decoded is! Map<String, dynamic>) {
+        throw const FormatException('Invalid backup root.');
+      }
+      final accepted = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(t('restoreConfirm')),
+          content: Text(t('restoreWarning')),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text(t('cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(t('restore')),
+            ),
+          ],
+        ),
+      );
+      if (accepted != true) return;
+      await db.restoreBackup(decoded);
+      await reload();
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t('restoreDone'))));
+      }
+    } catch (_) {
+      if (mounted) _showBackupError();
+    }
+  }
+
+  void _showBackupError() {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(t('backupInvalid'))));
   }
 
   Future<void> editor([TodoTask? task]) async {
@@ -1363,6 +1468,30 @@ class _TodoShellState extends State<TodoShell> {
       ),
       const SizedBox(height: 14),
       Card(
+        child: Column(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.backup_outlined, color: _green),
+              title: Text(t('backupRestore')),
+            ),
+            ListTile(
+              leading: const Icon(Icons.save_alt_rounded),
+              title: Text(t('backup')),
+              subtitle: Text(t('backupDesc')),
+              onTap: _exportBackup,
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.settings_backup_restore_rounded),
+              title: Text(t('restore')),
+              subtitle: Text(t('restoreDesc')),
+              onTap: _importBackup,
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 12),
+      Card(
         child: ListTile(
           leading: const Icon(Icons.notifications_off_outlined),
           title: Text(t('reminders')),
@@ -1416,13 +1545,130 @@ class _SavedListsScreenState extends State<SavedListsScreen> {
   }
 
   Future<void> _newList({String? kind}) async {
-    final controller = TextEditingController(
-      text: kind == 'shopping'
-          ? t('shoppingList')
-          : kind == 'travel'
-          ? t('travelList')
-          : '',
-    );
+    final templates = <String, (String, List<String>)>{
+      'shopping': (
+        t('groceriesList'),
+        widget.lang == 'ar'
+            ? [
+                'خضروات وفاكهة',
+                'خبز ومخبوزات',
+                'حليب وألبان',
+                'لحوم أو بدائل',
+                'مستلزمات المنزل',
+              ]
+            : [
+                'Fruit and vegetables',
+                'Bread and bakery',
+                'Milk and dairy',
+                'Meat or alternatives',
+                'Household supplies',
+              ],
+      ),
+      'travel': (
+        t('travelList'),
+        widget.lang == 'ar'
+            ? [
+                'حجز السفر والإقامة',
+                'جواز السفر والهوية',
+                'التذاكر والحجوزات',
+                'الأدوية الضرورية',
+                'شاحن الهاتف',
+                'ملابس السفر',
+              ]
+            : [
+                'Book travel and stay',
+                'Passport and ID',
+                'Tickets and reservations',
+                'Essential medication',
+                'Phone charger',
+                'Travel clothes',
+              ],
+      ),
+      'umrah': (
+        t('umrahList'),
+        widget.lang == 'ar'
+            ? [
+                'جواز السفر والهوية',
+                'ملابس الإحرام',
+                'حجز السكن والمواصلات',
+                'أدوية ومستلزمات شخصية',
+                'شاحن الهاتف',
+                'التأكد من التصاريح',
+              ]
+            : [
+                'Passport and ID',
+                'Ihram clothing',
+                'Accommodation and transport',
+                'Medication and personal care',
+                'Phone charger',
+                'Check permits',
+              ],
+      ),
+      'hajj': (
+        t('hajjList'),
+        widget.lang == 'ar'
+            ? [
+                'جواز السفر والهوية',
+                'وثائق الحملة والتصاريح',
+                'ملابس الإحرام',
+                'أدوية ومستلزمات صحية',
+                'حذاء مريح ومظلة',
+                'شاحن متنقل',
+              ]
+            : [
+                'Passport and ID',
+                'Hajj group documents and permits',
+                'Ihram clothing',
+                'Medication and health supplies',
+                'Comfortable shoes and umbrella',
+                'Power bank',
+              ],
+      ),
+      'ramadan': (
+        t('ramadanList'),
+        widget.lang == 'ar'
+            ? [
+                'خطة وجبات الأسبوع',
+                'مستلزمات السحور',
+                'مستلزمات الإفطار',
+                'مواعيد العبادات',
+                'صدقة أو عمل تطوعي',
+              ]
+            : [
+                'Plan weekly meals',
+                'Suhoor groceries',
+                'Iftar groceries',
+                'Worship schedule',
+                'Charity or volunteering',
+              ],
+      ),
+      'moving': (
+        t('movingList'),
+        widget.lang == 'ar'
+            ? [
+                'حجز شركة النقل',
+                'كراتين ومواد تغليف',
+                'فرز الأغراض والتبرع',
+                'تحديث العنوان والخدمات',
+                'تجهيز حقيبة اليوم الأول',
+              ]
+            : [
+                'Book movers',
+                'Boxes and packing supplies',
+                'Sort and donate items',
+                'Update address and utilities',
+                'Pack a first-day bag',
+              ],
+      ),
+      'books': (
+        t('booksList'),
+        widget.lang == 'ar'
+            ? ['أضف كتاباً للقراءة', 'حدّد هدف القراءة', 'سجّل ملاحظاتك']
+            : ['Add a book to read', 'Set a reading goal', 'Record your notes'],
+      ),
+    };
+    final preset = kind == null || kind == 'custom' ? null : templates[kind];
+    final controller = TextEditingController(text: preset?.$1 ?? '');
     final name = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1448,6 +1694,11 @@ class _SavedListsScreenState extends State<SavedListsScreen> {
     controller.dispose();
     if (name == null || name.isEmpty) return;
     final id = await db.createList(name, kind ?? 'custom');
+    if (preset != null) {
+      for (final item in preset.$2) {
+        await db.createListItem(id, item);
+      }
+    }
     await _load();
     if (mounted) setState(() => expanded.add(id));
   }
@@ -1520,17 +1771,22 @@ class _SavedListsScreenState extends State<SavedListsScreen> {
       const SizedBox(height: 14),
       Wrap(
         spacing: 8,
+        runSpacing: 8,
         children: [
-          ActionChip(
-            avatar: const Icon(Icons.shopping_cart_outlined, size: 18),
-            label: Text(t('shoppingList')),
-            onPressed: () => _newList(kind: 'shopping'),
-          ),
-          ActionChip(
-            avatar: const Icon(Icons.flight_takeoff_rounded, size: 18),
-            label: Text(t('travelList')),
-            onPressed: () => _newList(kind: 'travel'),
-          ),
+          for (final option in [
+            ('shopping', 'groceriesList', Icons.shopping_cart_outlined),
+            ('travel', 'travelList', Icons.flight_takeoff_rounded),
+            ('umrah', 'umrahList', Icons.mosque_rounded),
+            ('hajj', 'hajjList', Icons.mosque_rounded),
+            ('ramadan', 'ramadanList', Icons.nights_stay_rounded),
+            ('moving', 'movingList', Icons.local_shipping_outlined),
+            ('books', 'booksList', Icons.menu_book_rounded),
+          ])
+            ActionChip(
+              avatar: Icon(option.$3, size: 18),
+              label: Text(t(option.$2)),
+              onPressed: () => _newList(kind: option.$1),
+            ),
           ActionChip(
             avatar: const Icon(Icons.playlist_add_rounded, size: 18),
             label: Text(t('customList')),
