@@ -124,6 +124,9 @@ const Map<String, Map<String, String>> _words = {
     'weekly': 'Weekly',
     'subtasks': 'Subtasks',
     'project': 'Project',
+    'projects': 'Projects',
+    'allProjects': 'All projects',
+    'projectTasks': 'tasks',
   },
   'ar': {
     'home': 'الرئيسية',
@@ -230,6 +233,9 @@ const Map<String, Map<String, String>> _words = {
     'weekly': 'أسبوعياً',
     'subtasks': 'مهام فرعية',
     'project': 'المشروع',
+    'projects': 'المشاريع',
+    'allProjects': 'كل المشاريع',
+    'projectTasks': 'مهام',
   },
 };
 
@@ -376,13 +382,14 @@ class TodoShell extends StatefulWidget {
 
 class _TodoShellState extends State<TodoShell> {
   final db = TaskDatabase.instance;
-  String appVersion = '1.0.3+4';
+  String appVersion = '1.0.4+5';
   List<TodoTask> tasks = [];
   int tab = 0;
   bool loading = true;
   bool remindersEnabled = false;
   String filter = 'all';
   String search = '';
+  String? projectFilter;
   final quickController = TextEditingController();
   DateTime selected = DateTime.now();
   String t(String key) => _words[widget.lang]?[key] ?? key;
@@ -675,12 +682,23 @@ class _TodoShellState extends State<TodoShell> {
             isSameDay(x.dueAt!, DateTime.now()),
       )
       .toList();
+  List<String> get projectNames =>
+      tasks
+          .map((task) => task.project.trim())
+          .where((project) => project.isNotEmpty)
+          .toSet()
+          .toList()
+        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+
   List<TodoTask> get visibleTasks {
     var v = tasks;
+    if (projectFilter != null) {
+      v = v.where((task) => task.project.trim() == projectFilter).toList();
+    }
     if (search.isNotEmpty) {
       v = v
           .where(
-            (x) => ('${x.title} ${x.description} ${x.category}')
+            (x) => ('${x.title} ${x.description} ${x.category} ${x.project}')
                 .toLowerCase()
                 .contains(search.toLowerCase()),
           )
@@ -806,6 +824,10 @@ class _TodoShellState extends State<TodoShell> {
                   ),
                 ],
               ),
+              if (projectNames.isNotEmpty) ...[
+                const SizedBox(height: 22),
+                _projectsSection(),
+              ],
               const SizedBox(height: 24),
               Row(
                 children: [
@@ -837,6 +859,95 @@ class _TodoShellState extends State<TodoShell> {
       ),
     ],
   );
+  Widget _projectsSection() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        children: [
+          Expanded(
+            child: Text(
+              t('projects'),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+            ),
+          ),
+          TextButton(
+            onPressed: () => setState(() {
+              projectFilter = null;
+              filter = 'all';
+              tab = 1;
+            }),
+            child: Text(t('all')),
+          ),
+        ],
+      ),
+      SizedBox(
+        height: 140,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: projectNames.length,
+          separatorBuilder: (_, _) => const SizedBox(width: 10),
+          itemBuilder: (context, index) {
+            final name = projectNames[index];
+            final items = tasks.where((task) => task.project.trim() == name);
+            final total = items.length;
+            final completed = items.where((task) => task.completed).length;
+            return SizedBox(
+              width: 230,
+              child: Card(
+                color: const Color(0xffeef5f1),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () => setState(() {
+                    projectFilter = name;
+                    filter = 'all';
+                    tab = 1;
+                  }),
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.folder_outlined, color: _green),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text('$completed / $total ${t('projectTasks')}'),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: LinearProgressIndicator(
+                            value: total == 0 ? 0 : completed / total,
+                            minHeight: 7,
+                            backgroundColor: _mint,
+                            color: _green,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    ],
+  );
+
   Widget _progressCard() {
     final total = todayTasks.length,
         done = todayTasks.where((x) => x.completed).length;
@@ -1011,6 +1122,35 @@ class _TodoShellState extends State<TodoShell> {
               ),
               onChanged: (v) => setState(() => search = v),
             ),
+            if (projectNames.isNotEmpty) ...[
+              const SizedBox(height: 9),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    ChoiceChip(
+                      label: Text(t('allProjects')),
+                      selected: projectFilter == null,
+                      onSelected: (_) => setState(() => projectFilter = null),
+                    ),
+                    ...projectNames.map(
+                      (name) => Padding(
+                        padding: const EdgeInsetsDirectional.only(start: 7),
+                        child: ChoiceChip(
+                          label: Text(name),
+                          selected: projectFilter == name,
+                          onSelected: (_) => setState(
+                            () => projectFilter = projectFilter == name
+                                ? null
+                                : name,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 10),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,

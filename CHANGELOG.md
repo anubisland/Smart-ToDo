@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.4 — 2026-11-17
+
+- Added a dashboard project overview with per-project completion progress.
+- Added project filtering to the task list and included project names in search.
+- Preserved the existing Android signing certificate for direct upgrades.
+
 ## 1.0.3 — 2026-11-17
 
 - Added individually checkable subtasks with progress indicators on task cards.
