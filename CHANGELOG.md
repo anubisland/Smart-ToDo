@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.2 — 2026-11-17
+
+- Added opt-in Android task reminders. Tasks with a time notify at the scheduled time; date-only tasks notify at 9:00 AM local time.
+- Added Android notification permission handling and rescheduling after reboot, time changes, and app updates.
+- Reminders use inexact alarms so they do not require exact-alarm access. Battery-saving policies and some device manufacturers may delay delivery.
+- Preserved the existing Android signing certificate for a direct update from 1.0.1.
+
 ## 1.0.1 — 2026-11-17
 
 - Added JSON backup and restore for tasks, focus sessions, and saved lists. Restore validates the file and asks before replacing current data.

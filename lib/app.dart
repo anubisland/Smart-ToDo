@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:table_calendar/table_calendar.dart' hide isSameDay;
+import 'data/reminder_service.dart';
 import 'data/task.dart';
 import 'data/task_database.dart';
 import 'smart_input.dart';
@@ -59,7 +60,10 @@ const Map<String, Map<String, String>> _words = {
     'customList': 'Custom list',
     'noLists': 'Create a list for shopping, travel, or anything you need.',
     'reminders': 'Reminders',
-    'remindersDisabled': 'Local reminders are not enabled in this build.',
+    'remindersDisabled': 'Get a notification when a task is due.',
+    'remindersEnabled': 'Due-time reminders are active on this device.',
+    'reminderPermissionDenied':
+        'Allow notifications in Android settings to enable reminders.',
     'linkTask': 'Link to a task',
     'noneOption': 'None',
     'today': 'Today',
@@ -163,7 +167,10 @@ const Map<String, Map<String, String>> _words = {
     'customList': 'قائمة مخصصة',
     'noLists': 'أنشئ قائمة للتسوق أو السفر أو لأي شيء تحتاجه.',
     'reminders': 'التذكيرات',
-    'remindersDisabled': 'التذكيرات المحلية غير مفعلة في هذا الإصدار.',
+    'remindersDisabled': 'احصل على تنبيه عند حلول موعد المهمة.',
+    'remindersEnabled': 'تذكيرات مواعيد المهام مفعلة على هذا الجهاز.',
+    'reminderPermissionDenied':
+        'اسمح بالإشعارات من إعدادات Android لتفعيل التذكيرات.',
     'linkTask': 'اربط الجلسة بمهمة',
     'noneOption': 'بدون',
     'today': 'اليوم',
@@ -369,10 +376,11 @@ class TodoShell extends StatefulWidget {
 
 class _TodoShellState extends State<TodoShell> {
   final db = TaskDatabase.instance;
-  String appVersion = '1.0.1+2';
+  String appVersion = '1.0.2+3';
   List<TodoTask> tasks = [];
   int tab = 0;
   bool loading = true;
+  bool remindersEnabled = false;
   String filter = 'all';
   String search = '';
   final quickController = TextEditingController();
@@ -387,6 +395,58 @@ class _TodoShellState extends State<TodoShell> {
       }
     });
     reload();
+    _loadReminderSettings();
+  }
+
+  Future<void> _loadReminderSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    final enabled = prefs.getBool('reminders_enabled') ?? false;
+    if (mounted) setState(() => remindersEnabled = enabled);
+    if (!enabled) return;
+    try {
+      await ReminderService.instance.scheduleAll(
+        await db.allTasks(),
+        widget.lang,
+      );
+    } catch (_) {
+      // Keep the task app usable if the OS notification service is unavailable.
+    }
+  }
+
+  Future<void> _setReminders(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (enabled) {
+      bool allowed;
+      try {
+        allowed = await ReminderService.instance.requestPermission();
+      } catch (_) {
+        allowed = false;
+      }
+      if (!allowed) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(t('reminderPermissionDenied'))),
+          );
+        }
+        return;
+      }
+      await prefs.setBool('reminders_enabled', true);
+      if (mounted) setState(() => remindersEnabled = true);
+      try {
+        await ReminderService.instance.scheduleAll(tasks, widget.lang);
+      } catch (_) {
+        await prefs.setBool('reminders_enabled', false);
+        if (mounted) setState(() => remindersEnabled = false);
+      }
+    } else {
+      await prefs.setBool('reminders_enabled', false);
+      try {
+        await ReminderService.instance.cancelAll();
+      } catch (_) {
+        // Disabling reminders should still be available if the OS service fails.
+      }
+      if (mounted) setState(() => remindersEnabled = false);
+    }
   }
 
   Future<void> reload() async {
@@ -406,7 +466,15 @@ class _TodoShellState extends State<TodoShell> {
   }
 
   Future<void> save(TodoTask value) async {
-    await db.save(value);
+    final id = await db.save(value);
+    try {
+      await ReminderService.instance.scheduleTask(
+        value.copyWith(id: id),
+        widget.lang,
+      );
+    } catch (_) {
+      // A notification service failure must not block saving the task.
+    }
     await reload();
   }
 
@@ -427,6 +495,11 @@ class _TodoShellState extends State<TodoShell> {
   Future<void> delete(TodoTask task) async {
     if (task.id == null) return;
     await db.delete(task.id!);
+    try {
+      await ReminderService.instance.cancelTask(task.id!);
+    } catch (_) {
+      // Deleting the task remains successful even if Android cannot cancel now.
+    }
     await reload();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -492,6 +565,11 @@ class _TodoShellState extends State<TodoShell> {
       if (accepted != true) return;
       await db.restoreBackup(decoded);
       await reload();
+      try {
+        await ReminderService.instance.scheduleAll(tasks, widget.lang);
+      } catch (_) {
+        // Restored task data is valid even if notifications could not be rebuilt.
+      }
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -1493,9 +1571,16 @@ class _TodoShellState extends State<TodoShell> {
       const SizedBox(height: 12),
       Card(
         child: ListTile(
-          leading: const Icon(Icons.notifications_off_outlined),
+          leading: Icon(
+            remindersEnabled
+                ? Icons.notifications_active_outlined
+                : Icons.notifications_off_outlined,
+          ),
           title: Text(t('reminders')),
-          subtitle: Text(t('remindersDisabled')),
+          subtitle: Text(
+            t(remindersEnabled ? 'remindersEnabled' : 'remindersDisabled'),
+          ),
+          trailing: Switch(value: remindersEnabled, onChanged: _setReminders),
         ),
       ),
       const SizedBox(height: 12),

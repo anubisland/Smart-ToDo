@@ -12,6 +12,7 @@ Smart-ToDo is an Anubisland Flutter task manager, built Android-first with iOS s
 - Create and check off persistent shopping, travel, and custom lists.
 - Start grocery, travel, Umrah, Hajj, Ramadan, moving, and reading lists from editable checklist templates.
 - Export tasks, focus history, lists, and list items as a JSON backup, then restore them after explicit confirmation.
+- Enable local Android reminders for future tasks with a due time; date-only tasks remind at 9:00 AM.
 - Choose Cairo, Amiri, Noto Sans Arabic, Noto Naskh Arabic, or Tajawal. Adjust text size and switch language and theme in Settings.
 - Show the installed app version and Anubisland copyright notice in Settings.
 - Use responsive bottom navigation on phones and a navigation rail on tablets.
@@ -44,7 +45,7 @@ Tasks, focus sessions, and saved lists are stored on the device. Backups are JSO
 
 ## MVP boundaries
 
-Project names and subtasks can be saved on tasks; there is no separate project overview or per-subtask completion tracking yet. Work, short-break, and long-break timers can be selected; automatic Pomodoro phase cycling is not implemented. Notifications are disabled because Android permission, exact-alarm, timezone, rescheduling, and device behavior have not been validated. Statistics show tasks completed by completion date and total recorded focus minutes.
+Project names and subtasks can be saved on tasks; there is no separate project overview or per-subtask completion tracking yet. Work, short-break, and long-break timers can be selected; automatic Pomodoro phase cycling is not implemented. Android reminders require notification permission and use inexact scheduling, so power-saving policies and some device manufacturers may delay delivery. Statistics show tasks completed by completion date and total recorded focus minutes.
 
 The app icon supplied for this project is in `assets/branding/smart_todo_icon.png`; Android, iOS, and web launcher assets are generated from it. Bundled font files and their SIL Open Font License notices are in `assets/fonts/`.
 
