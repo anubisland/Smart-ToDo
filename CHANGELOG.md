@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.7 — 2026-11-17
+
+- Added optional password-protected encrypted backups using Argon2id key derivation and authenticated AES-256-GCM encryption.
+- Kept the standard JSON backup and restore flow, including support for existing backups.
+- Added encrypted `.stbackup` restore and password confirmation.
+- Preserved the existing Android signing certificate for direct upgrades.
+
 ## 1.0.6 — 2026-11-17
 
 - Added 7-day and 30-day completion trend views with comparison to the previous period.

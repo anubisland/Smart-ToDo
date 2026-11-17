@@ -10,6 +10,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:table_calendar/table_calendar.dart' hide isSameDay;
 import 'data/reminder_service.dart';
+import 'data/backup_cipher.dart';
 import 'data/task.dart';
 import 'data/task_database.dart';
 import 'smart_input.dart';
@@ -52,11 +53,19 @@ const Map<String, Map<String, String>> _words = {
     'restore': 'Restore backup',
     'restoreDesc': 'Replace app data from a Smart-ToDo backup file.',
     'backupSaved': 'Backup file created.',
+    'encryptedBackup': 'Create encrypted backup',
+    'encryptedBackupDesc': 'Protect your backup with a password.',
+    'backupPassword': 'Backup password',
+    'confirmPassword': 'Confirm password',
+    'passwordTooShort': 'Use at least 12 characters.',
+    'passwordMismatch': 'The passwords do not match.',
+    'continue': 'Continue',
+    'passwordWarning': 'Keep this password safe. It cannot be recovered.',
     'restoreDone': 'Backup restored successfully.',
     'restoreConfirm': 'Restore this backup?',
     'restoreWarning':
         'This replaces all current tasks, focus history, and lists.',
-    'backupInvalid': 'The selected backup is invalid or unsupported.',
+    'backupInvalid': 'Invalid backup or incorrect password.',
     'customList': 'Custom list',
     'noLists': 'Create a list for shopping, travel, or anything you need.',
     'reminders': 'Reminders',
@@ -171,11 +180,19 @@ const Map<String, Map<String, String>> _words = {
     'restore': 'استعادة نسخة احتياطية',
     'restoreDesc': 'استبدل بيانات التطبيق من ملف نسخة Smart-ToDo.',
     'backupSaved': 'تم إنشاء ملف النسخة الاحتياطية.',
+    'encryptedBackup': 'إنشاء نسخة احتياطية مشفّرة',
+    'encryptedBackupDesc': 'احمِ النسخة الاحتياطية بكلمة مرور.',
+    'backupPassword': 'كلمة مرور النسخة الاحتياطية',
+    'confirmPassword': 'تأكيد كلمة المرور',
+    'passwordTooShort': 'استخدم 12 حرفاً على الأقل.',
+    'passwordMismatch': 'كلمتا المرور غير متطابقتين.',
+    'continue': 'متابعة',
+    'passwordWarning': 'احتفظ بكلمة المرور؛ لا يمكن استعادتها إذا فُقدت.',
     'restoreDone': 'تمت استعادة النسخة الاحتياطية بنجاح.',
     'restoreConfirm': 'هل تريد استعادة هذه النسخة؟',
     'restoreWarning':
         'سيؤدي ذلك إلى استبدال كل المهام وسجل التركيز والقوائم الحالية.',
-    'backupInvalid': 'ملف النسخة الاحتياطية غير صالح أو غير مدعوم.',
+    'backupInvalid': 'النسخة غير صالحة أو كلمة المرور غير صحيحة.',
     'customList': 'قائمة مخصصة',
     'noLists': 'أنشئ قائمة للتسوق أو السفر أو لأي شيء تحتاجه.',
     'reminders': 'التذكيرات',
@@ -400,7 +417,7 @@ class TodoShell extends StatefulWidget {
 
 class _TodoShellState extends State<TodoShell> {
   final db = TaskDatabase.instance;
-  String appVersion = '1.0.6+7';
+  String appVersion = '1.0.7+8';
   List<TodoTask> tasks = [];
   int tab = 0;
   bool loading = true;
@@ -559,11 +576,119 @@ class _TodoShellState extends State<TodoShell> {
     }
   }
 
+  Future<String?> _requestBackupPassword({bool confirm = false}) async {
+    final password = TextEditingController();
+    final confirmation = TextEditingController();
+    String? error;
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: Text(t('backupPassword')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: password,
+                obscureText: true,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: t('backupPassword'),
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+              if (confirm) ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: confirmation,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: t('confirmPassword'),
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+              ],
+              if (confirm) ...[
+                const SizedBox(height: 10),
+                Text(
+                  t('passwordWarning'),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+              if (error != null) ...[
+                const SizedBox(height: 8),
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Text(
+                    error!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(t('cancel')),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (confirm && password.text.length < 12) {
+                  setDialogState(() => error = t('passwordTooShort'));
+                  return;
+                }
+                if (confirm && password.text != confirmation.text) {
+                  setDialogState(() => error = t('passwordMismatch'));
+                  return;
+                }
+                if (password.text.isEmpty) {
+                  setDialogState(() => error = t('passwordTooShort'));
+                  return;
+                }
+                Navigator.pop(dialogContext, password.text);
+              },
+              child: Text(t('continue')),
+            ),
+          ],
+        ),
+      ),
+    );
+    password.dispose();
+    confirmation.dispose();
+    return result;
+  }
+
+  Future<void> _exportEncryptedBackup() async {
+    final password = await _requestBackupPassword(confirm: true);
+    if (password == null) return;
+    try {
+      final data = await db.exportBackup();
+      final encrypted = await BackupCipher.encrypt(data, password);
+      final stamp = DateFormat('yyyyMMdd-HHmm').format(DateTime.now());
+      final result = await FilePicker.saveFile(
+        dialogTitle: t('encryptedBackup'),
+        fileName: 'smart-todo-backup-$stamp.stbackup',
+        bytes: Uint8List.fromList(utf8.encode(jsonEncode(encrypted))),
+        mimeType: 'application/octet-stream',
+      );
+      if (result != null && mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t('backupSaved'))));
+      }
+    } catch (_) {
+      if (mounted) _showBackupError();
+    }
+  }
+
   Future<void> _importBackup() async {
     try {
       final file = await FilePicker.pickFile(
         type: FileType.custom,
-        allowedExtensions: const ['json'],
+        allowedExtensions: const ['json', 'stbackup'],
       );
       if (file == null) return;
       final decoded = jsonDecode(utf8.decode(await file.readAsBytes()));
@@ -571,6 +696,13 @@ class _TodoShellState extends State<TodoShell> {
       if (decoded is! Map<String, dynamic>) {
         throw const FormatException('Invalid backup root.');
       }
+      var backup = decoded;
+      if (backup['format'] == BackupCipher.format) {
+        final password = await _requestBackupPassword();
+        if (password == null) return;
+        backup = await BackupCipher.decrypt(backup, password);
+      }
+      if (!mounted) return;
       final accepted = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -589,7 +721,7 @@ class _TodoShellState extends State<TodoShell> {
         ),
       );
       if (accepted != true) return;
-      await db.restoreBackup(decoded);
+      await db.restoreBackup(backup);
       await reload();
       try {
         await ReminderService.instance.scheduleAll(tasks, widget.lang);
@@ -1868,6 +2000,13 @@ class _TodoShellState extends State<TodoShell> {
               title: Text(t('backup')),
               subtitle: Text(t('backupDesc')),
               onTap: _exportBackup,
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.enhanced_encryption_rounded),
+              title: Text(t('encryptedBackup')),
+              subtitle: Text(t('encryptedBackupDesc')),
+              onTap: _exportEncryptedBackup,
             ),
             const Divider(height: 1),
             ListTile(

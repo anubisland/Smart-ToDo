@@ -43,7 +43,7 @@ The APK is written to `build/app/outputs/flutter-apk/app-release.apk`. Release b
 
 ## Storage and privacy
 
-Tasks, focus sessions, and saved lists are stored on the device. Backups are JSON files and are not encrypted; store them somewhere private. Smart input is local and does not call an AI service. There are no embedded service credentials. Firebase sync, AI planning, subscriptions, and local notifications are not configured or presented as available features.
+Tasks, focus sessions, and saved lists are stored on the device. Standard JSON backups are unencrypted. The optional encrypted backup protects the complete backup file with a password; keep that password safe because it cannot be recovered. Smart input is local and does not call an AI service. There are no embedded service credentials. Firebase sync, AI planning, subscriptions, and local notifications are not configured or presented as available features.
 
 ## MVP boundaries
 
