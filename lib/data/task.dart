@@ -15,6 +15,7 @@ class TodoTask {
     this.completedAt,
     this.recurrence = 'none',
     this.subtasks = const [],
+    this.subtasksDone = const [],
     this.createdAt,
   });
 
@@ -31,6 +32,7 @@ class TodoTask {
   final DateTime? completedAt;
   final String recurrence;
   final List<String> subtasks;
+  final List<bool> subtasksDone;
   final DateTime? createdAt;
 
   TodoTask copyWith({
@@ -48,6 +50,7 @@ class TodoTask {
     DateTime? completedAt,
     String? recurrence,
     List<String>? subtasks,
+    List<bool>? subtasksDone,
   }) => TodoTask(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -62,6 +65,7 @@ class TodoTask {
     completedAt: completed == false ? null : (completedAt ?? this.completedAt),
     recurrence: recurrence ?? this.recurrence,
     subtasks: subtasks ?? this.subtasks,
+    subtasksDone: subtasksDone ?? this.subtasksDone,
     createdAt: createdAt,
   );
 
@@ -79,33 +83,42 @@ class TodoTask {
     'completed_at': completedAt?.toIso8601String(),
     'recurrence': recurrence,
     'subtasks': subtasks.join('\n'),
+    'subtasks_done': subtasksDone.map((done) => done ? '1' : '0').join('\n'),
     'created_at': (createdAt ?? DateTime.now()).toIso8601String(),
   };
 
-  factory TodoTask.fromMap(Map<String, Object?> map) => TodoTask(
-    id: map['id'] as int,
-    title: map['title'] as String,
-    description: map['description'] as String? ?? '',
-    dueAt: map['due_at'] == null
-        ? null
-        : DateTime.parse(map['due_at'] as String),
-    hasDueTime: map['has_due_time'] == 1,
-    durationMinutes: map['duration'] as int? ?? 25,
-    priority: TaskPriority.values.firstWhere(
-      (p) => p.name == map['priority'],
-      orElse: () => TaskPriority.medium,
-    ),
-    category: map['category'] as String? ?? 'Personal',
-    project: map['project'] as String? ?? '',
-    completed: map['completed'] == 1,
-    completedAt: DateTime.tryParse(map['completed_at'] as String? ?? ''),
-    recurrence: map['recurrence'] as String? ?? 'none',
-    subtasks: (map['subtasks'] as String? ?? '')
+  factory TodoTask.fromMap(Map<String, Object?> map) {
+    final subtasks = (map['subtasks'] as String? ?? '')
         .split('\n')
         .where((s) => s.isNotEmpty)
-        .toList(),
-    createdAt: DateTime.tryParse(map['created_at'] as String? ?? ''),
-  );
+        .toList();
+    final done = (map['subtasks_done'] as String? ?? '').split('\n');
+    return TodoTask(
+      id: map['id'] as int,
+      title: map['title'] as String,
+      description: map['description'] as String? ?? '',
+      dueAt: map['due_at'] == null
+          ? null
+          : DateTime.parse(map['due_at'] as String),
+      hasDueTime: map['has_due_time'] == 1,
+      durationMinutes: map['duration'] as int? ?? 25,
+      priority: TaskPriority.values.firstWhere(
+        (p) => p.name == map['priority'],
+        orElse: () => TaskPriority.medium,
+      ),
+      category: map['category'] as String? ?? 'Personal',
+      project: map['project'] as String? ?? '',
+      completed: map['completed'] == 1,
+      completedAt: DateTime.tryParse(map['completed_at'] as String? ?? ''),
+      recurrence: map['recurrence'] as String? ?? 'none',
+      subtasks: subtasks,
+      subtasksDone: List<bool>.generate(
+        subtasks.length,
+        (index) => index < done.length && done[index] == '1',
+      ),
+      createdAt: DateTime.tryParse(map['created_at'] as String? ?? ''),
+    );
+  }
 }
 
 bool isOverdue(TodoTask task, [DateTime? now]) =>
@@ -141,6 +154,7 @@ TodoTask? nextOccurrence(TodoTask task) {
     project: task.project,
     recurrence: task.recurrence,
     subtasks: task.subtasks,
+    subtasksDone: List<bool>.filled(task.subtasks.length, false),
   );
 }
 

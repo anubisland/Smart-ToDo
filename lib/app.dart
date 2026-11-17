@@ -376,7 +376,7 @@ class TodoShell extends StatefulWidget {
 
 class _TodoShellState extends State<TodoShell> {
   final db = TaskDatabase.instance;
-  String appVersion = '1.0.2+3';
+  String appVersion = '1.0.3+4';
   List<TodoTask> tasks = [];
   int tab = 0;
   bool loading = true;
@@ -1049,6 +1049,8 @@ class _TodoShellState extends State<TodoShell> {
       TaskPriority.medium => const Color(0xffdba73b),
       TaskPriority.low => _green,
     };
+    final subtaskCount = task.subtasks.length;
+    final completedSubtasks = task.subtasksDone.where((done) => done).length;
     return Card(
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
@@ -1074,6 +1076,26 @@ class _TodoShellState extends State<TodoShell> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
+            if (subtaskCount > 0) ...[
+              const SizedBox(height: 9),
+              Row(
+                children: [
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: LinearProgressIndicator(
+                        value: completedSubtasks / subtaskCount,
+                        minHeight: 6,
+                        backgroundColor: _mint,
+                        color: _green,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text('$completedSubtasks/$subtaskCount ${t('subtasks')}'),
+                ],
+              ),
+            ],
             const SizedBox(height: 5),
             Wrap(
               spacing: 9,
@@ -1990,9 +2012,9 @@ class _TaskEditorState extends State<TaskEditor> {
     text: widget.task?.description ?? '',
   );
   late final project = TextEditingController(text: widget.task?.project ?? '');
-  late final subtasks = TextEditingController(
-    text: widget.task?.subtasks.join('\n') ?? '',
-  );
+  final subtaskInput = TextEditingController();
+  final List<String> subtaskItems = [];
+  final List<bool> subtaskDone = [];
   late final duration = TextEditingController(
     text: '${widget.task?.durationMinutes ?? 25}',
   );
@@ -2008,7 +2030,7 @@ class _TaskEditorState extends State<TaskEditor> {
     title.dispose();
     description.dispose();
     project.dispose();
-    subtasks.dispose();
+    subtaskInput.dispose();
     duration.dispose();
     super.dispose();
   }
@@ -2021,7 +2043,28 @@ class _TaskEditorState extends State<TaskEditor> {
     priority = widget.task?.priority ?? TaskPriority.medium;
     category = widget.task?.category ?? 'Personal';
     recurrence = widget.task?.recurrence ?? 'none';
+    final task = widget.task;
+    if (task != null) {
+      subtaskItems.addAll(task.subtasks);
+      subtaskDone.addAll(
+        List<bool>.generate(
+          task.subtasks.length,
+          (index) =>
+              index < task.subtasksDone.length && task.subtasksDone[index],
+        ),
+      );
+    }
     if (date != null) time = TimeOfDay.fromDateTime(date!);
+  }
+
+  void _addSubtask() {
+    final value = subtaskInput.text.trim();
+    if (value.isEmpty) return;
+    setState(() {
+      subtaskItems.add(value);
+      subtaskDone.add(false);
+      subtaskInput.clear();
+    });
   }
 
   @override
@@ -2220,20 +2263,57 @@ class _TaskEditorState extends State<TaskEditor> {
               onChanged: (v) => setState(() => recurrence = v ?? 'none'),
             ),
             const SizedBox(height: 14),
-            TextField(
-              controller: subtasks,
-              minLines: 2,
-              maxLines: 4,
-              decoration: InputDecoration(
-                labelText: s['subtasks'],
-                hintText: widget.lang == 'ar'
-                    ? 'مهمة فرعية في كل سطر'
-                    : 'One subtask per line',
-                prefixIcon: const Icon(Icons.format_list_bulleted_rounded),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
+            Text(
+              s['subtasks']!,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 6),
+            if (subtaskItems.isNotEmpty)
+              ...List<Widget>.generate(
+                subtaskItems.length,
+                (index) => CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  value: subtaskDone[index],
+                  title: Text(subtaskItems[index]),
+                  onChanged: (value) =>
+                      setState(() => subtaskDone[index] = value ?? false),
+                  secondary: IconButton(
+                    tooltip: widget.lang == 'ar' ? 'حذف' : 'Remove',
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => setState(() {
+                      subtaskItems.removeAt(index);
+                      subtaskDone.removeAt(index);
+                    }),
+                  ),
                 ),
               ),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: subtaskInput,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _addSubtask(),
+                    decoration: InputDecoration(
+                      hintText: widget.lang == 'ar'
+                          ? 'أضف مهمة فرعية'
+                          : 'Add a subtask',
+                      prefixIcon: const Icon(
+                        Icons.format_list_bulleted_rounded,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                ),
+                IconButton.filledTonal(
+                  onPressed: _addSubtask,
+                  icon: const Icon(Icons.add_rounded),
+                  tooltip: widget.lang == 'ar' ? 'إضافة' : 'Add',
+                ),
+              ],
             ),
             const SizedBox(height: 22),
             FilledButton(
@@ -2261,11 +2341,8 @@ class _TaskEditorState extends State<TaskEditor> {
                     category: category,
                     project: project.text.trim(),
                     recurrence: recurrence,
-                    subtasks: subtasks.text
-                        .split('\n')
-                        .map((item) => item.trim())
-                        .where((item) => item.isNotEmpty)
-                        .toList(),
+                    subtasks: List<String>.of(subtaskItems),
+                    subtasksDone: List<bool>.of(subtaskDone),
                     completed: widget.task?.completed ?? false,
                     completedAt: widget.task?.completedAt,
                     createdAt: widget.task?.createdAt,

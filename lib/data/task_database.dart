@@ -19,10 +19,10 @@ class TaskDatabase {
     _db = await (_factory ?? databaseFactory).openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 4,
+        version: 5,
         onCreate: (db, version) async {
           await db.execute(
-            '''CREATE TABLE tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', due_at TEXT, has_due_time INTEGER NOT NULL DEFAULT 0, duration INTEGER NOT NULL DEFAULT 25, priority TEXT NOT NULL DEFAULT 'medium', category TEXT NOT NULL DEFAULT 'Personal', project TEXT NOT NULL DEFAULT '', completed INTEGER NOT NULL DEFAULT 0, completed_at TEXT, recurrence TEXT NOT NULL DEFAULT 'none', subtasks TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL)''',
+            '''CREATE TABLE tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', due_at TEXT, has_due_time INTEGER NOT NULL DEFAULT 0, duration INTEGER NOT NULL DEFAULT 25, priority TEXT NOT NULL DEFAULT 'medium', category TEXT NOT NULL DEFAULT 'Personal', project TEXT NOT NULL DEFAULT '', completed INTEGER NOT NULL DEFAULT 0, completed_at TEXT, recurrence TEXT NOT NULL DEFAULT 'none', subtasks TEXT NOT NULL DEFAULT '', subtasks_done TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL)''',
           );
           await db.execute(
             '''CREATE TABLE focus_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER, started_at TEXT NOT NULL, duration INTEGER NOT NULL)''',
@@ -39,6 +39,11 @@ class TaskDatabase {
             await db.execute('ALTER TABLE tasks ADD COLUMN completed_at TEXT');
           }
           if (oldVersion < 4) await _createLists(db);
+          if (oldVersion < 5) {
+            await db.execute(
+              "ALTER TABLE tasks ADD COLUMN subtasks_done TEXT NOT NULL DEFAULT ''",
+            );
+          }
         },
       ),
     );

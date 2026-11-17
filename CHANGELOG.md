@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.3 — 2026-11-17
+
+- Added individually checkable subtasks with progress indicators on task cards.
+- Added a database migration that preserves existing tasks and resets subtask progress for each recurring occurrence.
+- Kept the existing Android signing certificate for a direct update from 1.0.2.
+
 ## 1.0.2 — 2026-11-17
 
 - Added opt-in Android task reminders. Tasks with a time notify at the scheduled time; date-only tasks notify at 9:00 AM local time.
