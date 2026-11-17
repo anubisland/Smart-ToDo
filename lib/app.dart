@@ -130,6 +130,12 @@ const Map<String, Map<String, String>> _words = {
     'focusCycle': 'Work sessions in this cycle',
     'sessionComplete': 'Session complete',
     'nextReady': 'is ready to start',
+    'last7Days': 'Last 7 days',
+    'last30Days': 'Last 30 days',
+    'periodCompleted': 'Tasks completed in this period',
+    'previousPeriod': 'previous period',
+    'categories': 'Progress by category',
+    'noCategoryTasks': 'No tasks in this category yet',
   },
   'ar': {
     'home': 'الرئيسية',
@@ -242,6 +248,12 @@ const Map<String, Map<String, String>> _words = {
     'focusCycle': 'جلسات التركيز في هذه الدورة',
     'sessionComplete': 'اكتملت الجلسة',
     'nextReady': 'جاهزة للبدء',
+    'last7Days': 'آخر 7 أيام',
+    'last30Days': 'آخر 30 يوماً',
+    'periodCompleted': 'المهام المكتملة خلال الفترة',
+    'previousPeriod': 'الفترة السابقة',
+    'categories': 'الإنجاز حسب التصنيف',
+    'noCategoryTasks': 'لا توجد مهام في هذا التصنيف بعد',
   },
 };
 
@@ -388,7 +400,7 @@ class TodoShell extends StatefulWidget {
 
 class _TodoShellState extends State<TodoShell> {
   final db = TaskDatabase.instance;
-  String appVersion = '1.0.5+6';
+  String appVersion = '1.0.6+7';
   List<TodoTask> tasks = [];
   int tab = 0;
   bool loading = true;
@@ -396,6 +408,7 @@ class _TodoShellState extends State<TodoShell> {
   String filter = 'all';
   String search = '';
   String? projectFilter;
+  int insightsDays = 7;
   final quickController = TextEditingController();
   DateTime selected = DateTime.now();
   String t(String key) => _words[widget.lang]?[key] ?? key;
@@ -1424,26 +1437,62 @@ class _TodoShellState extends State<TodoShell> {
                 title: '$overdue',
               ),
           ];
-    final days = List.generate(
-      7,
-      (i) => DateTime.now().subtract(Duration(days: 6 - i)),
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final periodStart = today.subtract(Duration(days: insightsDays - 1));
+    final previousStart = periodStart.subtract(Duration(days: insightsDays));
+    int completionsBetween(DateTime start, DateTime end) => tasks
+        .where(
+          (task) =>
+              task.completedAt != null &&
+              !task.completedAt!.isBefore(start) &&
+              task.completedAt!.isBefore(end),
+        )
+        .length;
+    final periodCompleted = completionsBetween(
+      periodStart,
+      today.add(const Duration(days: 1)),
     );
-    final bars = days.map((d) {
+    final previousCompleted = completionsBetween(previousStart, periodStart);
+    final trend = periodCompleted - previousCompleted;
+    final days = List.generate(
+      insightsDays,
+      (i) => periodStart.add(Duration(days: i)),
+    );
+    final bars = days.asMap().entries.map((entry) {
+      final d = entry.value;
       final n = tasks
           .where((x) => x.completedAt != null && isSameDay(x.completedAt!, d))
           .length;
       return BarChartGroupData(
-        x: days.indexOf(d),
+        x: entry.key,
         barRods: [
           BarChartRodData(
             toY: n.toDouble(),
             color: _green,
-            width: 17,
+            width: insightsDays == 7 ? 17 : 6,
             borderRadius: BorderRadius.circular(5),
           ),
         ],
       );
     }).toList();
+    final categoryTotals = <String, int>{};
+    final categoryCompleted = <String, int>{};
+    for (final task in tasks) {
+      categoryTotals.update(
+        task.category,
+        (count) => count + 1,
+        ifAbsent: () => 1,
+      );
+      if (task.completed) {
+        categoryCompleted.update(
+          task.category,
+          (count) => count + 1,
+          ifAbsent: () => 1,
+        );
+      }
+    }
+    final categories = categoryTotals.keys.toList()..sort();
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
       children: [
@@ -1454,6 +1503,39 @@ class _TodoShellState extends State<TodoShell> {
           ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 18),
+        Center(
+          child: SegmentedButton<int>(
+            segments: [
+              ButtonSegment(value: 7, label: Text(t('last7Days'))),
+              ButtonSegment(value: 30, label: Text(t('last30Days'))),
+            ],
+            selected: {insightsDays},
+            onSelectionChanged: (value) =>
+                setState(() => insightsDays = value.first),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Card(
+          child: ListTile(
+            leading: Icon(
+              trend >= 0
+                  ? Icons.trending_up_rounded
+                  : Icons.trending_down_rounded,
+              color: trend >= 0 ? _green : const Color(0xffdb654e),
+            ),
+            title: Text('${t('periodCompleted')}: $periodCompleted'),
+            subtitle: Text('$previousCompleted ${t('previousPeriod')}'),
+            trailing: Text(
+              '${trend > 0 ? '+' : ''}$trend',
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                color: trend >= 0 ? _green : const Color(0xffdb654e),
+                fontSize: 18,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
         Row(
           children: [
             Expanded(
@@ -1533,7 +1615,7 @@ class _TodoShellState extends State<TodoShell> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  t('week'),
+                  insightsDays == 7 ? t('week') : t('last30Days'),
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -1561,12 +1643,31 @@ class _TodoShellState extends State<TodoShell> {
                             showTitles: true,
                             getTitlesWidget: (v, m) => Padding(
                               padding: const EdgeInsets.only(top: 8),
-                              child: Text(
-                                DateFormat.E(widget.lang)
-                                    .format(days[v.toInt().clamp(0, 6)])
-                                    .substring(0, 1),
-                                style: const TextStyle(fontSize: 11),
-                              ),
+                              child:
+                                  insightsDays == 30 &&
+                                      v.toInt() % 5 != 0 &&
+                                      v.toInt() != 29
+                                  ? const SizedBox.shrink()
+                                  : Text(
+                                      insightsDays == 7
+                                          ? DateFormat.E(widget.lang)
+                                                .format(
+                                                  days[v.toInt().clamp(
+                                                    0,
+                                                    days.length - 1,
+                                                  )],
+                                                )
+                                                .substring(0, 1)
+                                          : DateFormat.Md(widget.lang).format(
+                                              days[v.toInt().clamp(
+                                                0,
+                                                days.length - 1,
+                                              )],
+                                            ),
+                                      style: TextStyle(
+                                        fontSize: insightsDays == 7 ? 11 : 9,
+                                      ),
+                                    ),
                             ),
                           ),
                         ),
@@ -1578,6 +1679,48 @@ class _TodoShellState extends State<TodoShell> {
             ),
           ),
         ),
+        if (categories.isNotEmpty)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    t('categories'),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  for (final category in categories) ...[
+                    Row(
+                      children: [
+                        Expanded(child: Text(t(category.toLowerCase()))),
+                        Text(
+                          '${categoryCompleted[category] ?? 0}/${categoryTotals[category]}',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: LinearProgressIndicator(
+                        value:
+                            (categoryCompleted[category] ?? 0) /
+                            categoryTotals[category]!,
+                        minHeight: 7,
+                        backgroundColor: _mint,
+                        color: _green,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                ],
+              ),
+            ),
+          ),
         Card(
           child: ListTile(
             leading: const Icon(Icons.timer_rounded, color: _green),
